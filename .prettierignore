@@ -1,0 +1,10 @@
+.next
+out
+build
+node_modules
+dist
+.idea
+.vscode
+next-env.d.ts
+pnpm-lock.yaml
+package-lock.json
