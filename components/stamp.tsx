@@ -135,14 +135,14 @@ export function Stamp({
 
   return (
     <div
-      className={cn("relative aspect-4/5 w-[min(100%,14rem)]", className)}
+      className={cn("relative aspect-[4/5] w-[min(100%,14rem)]", className)}
       style={rootStyle}
     >
       <article
         aria-hidden={ariaHidden}
         aria-label={ariaHidden ? undefined : ariaLabel}
         className={cn(
-          "relative size-full overflow-hidden p-(--stamp-padding) text-(--stamp-ink)",
+          "relative size-full overflow-hidden p-[var(--stamp-padding)] text-[var(--stamp-ink)]",
           stampClassName
         )}
         style={{ background: stampBackground, clipPath }}

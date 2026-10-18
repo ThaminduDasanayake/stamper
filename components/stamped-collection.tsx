@@ -73,13 +73,10 @@ export function StampedCollection({
           const matchesDenom = (item.config.denomination || "")
             .toLowerCase()
             .includes(q);
-          const matchesCity = (item.config.postmarkCity || "")
-            .toLowerCase()
-            .includes(q);
           const matchesSub = (item.config.subtitle || "")
             .toLowerCase()
             .includes(q);
-          if (!matchesCountry && !matchesDenom && !matchesCity && !matchesSub) {
+          if (!matchesCountry && !matchesDenom && !matchesSub) {
             return false;
           }
         }
@@ -206,6 +203,7 @@ export function StampedCollection({
             { id: "1/1", label: "1:1" },
             { id: "5/4", label: "5:4" },
             { id: "3/4", label: "3:4" },
+            { id: "auto", label: "Auto" },
           ].map((f) => (
             <button
               key={f.id}

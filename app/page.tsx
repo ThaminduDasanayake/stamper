@@ -32,37 +32,23 @@ import {
 
 const INITIAL_CONFIG: StampConfig = {
   imageUrl: `data:image/svg+xml;utf8,${encodeURIComponent(SAMPLE_STAMPS[0].svg)}`,
-  panX: 0,
-  panY: 0,
-  zoom: 1,
-  rotation: 0,
-  filter: "none",
-
+  country: "Pixel Parks",
+  denomination: "24",
+  subtitle: "Field archive · 01",
   aspectRatio: "4/5",
-  paperColor: "#fcf8f0",
-  inkColor: "#8a2832",
+  paperColor: "#ffffff",
+  inkColor: "#181713",
   padding: 13,
   horizontalPerforations: 12,
   verticalPerforations: 15,
   perforationDepth: 2.4,
-
-  country: "HELVETIA",
-  denomination: "50c",
-  subtitle: "SPECIAL ISSUE",
-
-  enablePostmark: true,
-  postmarkStyle: "classic-wavy",
-  postmarkCity: "ZÜRICH POST",
-  postmarkDate: "18.X.26",
-  postmarkColor: "#222222",
-  postmarkRotation: -14,
 };
 
 const INITIAL_CUTTER: StampCutterState = {
-  x: 220,
+  x: 240,
   y: 120,
-  width: 280,
-  rotation: 0,
+  width: 198,
+  rotation: -2,
 };
 
 export default function Home() {
@@ -110,6 +96,62 @@ export default function Home() {
   const handleResetCutter = () => {
     setCutter(INITIAL_CUTTER);
   };
+
+  // Auto resize stamp cutter to dimensions of current image
+  const handleAutoResizeToImage = useCallback(
+    (mode: "full" | "half" = "full") => {
+      if (!config.imageUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        const naturalW = img.naturalWidth || 680;
+        const naturalH = img.naturalHeight || 850;
+        const imageDisplayWidth = 680;
+        const imageDisplayX = 40;
+        const imageDisplayY = 40;
+        const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
+
+        const padding = config.padding || 13;
+        const targetOuterW = imageDisplayWidth + padding * 2;
+        const targetOuterH = displayH + padding * 2;
+        const customRatio = targetOuterH / targetOuterW;
+
+        const autoVPerfs = Math.max(
+          6,
+          Math.min(
+            36,
+            Math.round((config.horizontalPerforations || 12) * customRatio)
+          )
+        );
+
+        if (mode === "full") {
+          setCutter({
+            x: imageDisplayX - padding,
+            y: imageDisplayY - padding,
+            width: targetOuterW,
+            rotation: 0,
+          });
+        } else {
+          const halfW = Math.round(targetOuterW * 0.55);
+          const halfH = Math.round(halfW * customRatio);
+          setCutter({
+            x: Math.round(imageDisplayX + (imageDisplayWidth - halfW) / 2),
+            y: Math.round(imageDisplayY + (displayH - halfH) / 2),
+            width: halfW,
+            rotation: 0,
+          });
+        }
+
+        setConfig((prev) => ({
+          ...prev,
+          aspectRatio: "auto",
+          customAspectRatio: customRatio,
+          verticalPerforations: autoVPerfs,
+        }));
+      };
+      img.src = config.imageUrl;
+    },
+    [config.imageUrl, config.padding, config.horizontalPerforations]
+  );
 
   // Stamping execution: takes precise stencil crop from canvas
   const handleStampOut = useCallback(
@@ -345,6 +387,7 @@ export default function Home() {
               config={config}
               cutter={cutter}
               onChangeCutter={handleChangeCutter}
+              onChangeConfig={handleConfigChange}
               onStampOut={handleStampOut}
               isStamping={isStamping}
             />
@@ -359,6 +402,7 @@ export default function Home() {
               onChangeConfig={handleConfigChange}
               onChangeCutter={handleChangeCutter}
               onResetCutter={handleResetCutter}
+              onAutoResizeToImage={handleAutoResizeToImage}
               onStampOut={() => handleStampOut()}
               onSelectFromCollection={handleSelectFromCollection}
               onDeleteFromCollection={handleDeleteItem}
