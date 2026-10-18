@@ -19,6 +19,10 @@ export type StampConfig = {
   denomination?: string;
   subtitle?: string;
 
+  // Stored crop coordinates
+  crop?: CropOptions;
+  cutterWidth?: number;
+
   // Custom post-stamp text layers
   textItems?: StampTextItem[];
 
@@ -57,6 +61,8 @@ export type CropOptions = {
   normWidth?: number;
   normHeight?: number;
   cutterWidth?: number;
+  cutterX?: number;
+  cutterY?: number;
 
   // Pixel coordinates in image natural pixels
   cropX?: number;
@@ -108,12 +114,87 @@ export function computeCropFromCutter(
     normWidth: innerW / imageDisplayWidth,
     normHeight: innerH / displayH,
     cutterWidth: cutter.width,
+    cutterX: cutter.x,
+    cutterY: cutter.y,
     cropX: Math.round(relX * scaleX),
     cropY: Math.round(relY * scaleY),
     cropWidth: Math.round(innerW * scaleX),
     cropHeight: Math.round(innerH * scaleY),
     rotation: cutter.rotation,
   };
+}
+
+/**
+ * Extracts and cuts out only the cropped and rotated portion of the image,
+ * returning a standalone cropped image as a data URL.
+ */
+export async function createCroppedImage(
+  imageUrl: string,
+  cropOptions?: CropOptions,
+  maxDimension = 1600
+): Promise<string> {
+  if (!cropOptions) return imageUrl;
+
+  const img = await loadImage(imageUrl);
+  const sourceW = img.naturalWidth || img.width || 300;
+  const sourceH = img.naturalHeight || img.height || 375;
+
+  let sx: number;
+  let sy: number;
+  let sWidth: number;
+  let sHeight: number;
+
+  if (
+    cropOptions.normWidth !== undefined &&
+    cropOptions.normHeight !== undefined
+  ) {
+    sx = (cropOptions.normX ?? 0) * sourceW;
+    sy = (cropOptions.normY ?? 0) * sourceH;
+    sWidth = cropOptions.normWidth * sourceW;
+    sHeight = cropOptions.normHeight * sourceH;
+  } else {
+    sx = cropOptions.cropX ?? 0;
+    sy = cropOptions.cropY ?? 0;
+    sWidth = cropOptions.cropWidth ?? sourceW;
+    sHeight = cropOptions.cropHeight ?? sourceH;
+  }
+
+  // Clamp within source bounds
+  sx = Math.max(0, Math.min(sourceW - 1, sx));
+  sy = Math.max(0, Math.min(sourceH - 1, sy));
+  sWidth = Math.max(1, Math.min(sourceW - sx, sWidth));
+  sHeight = Math.max(1, Math.min(sourceH - sy, sHeight));
+
+  const scale = Math.min(1, maxDimension / Math.max(sWidth, sHeight));
+  const outW = Math.max(10, Math.round(sWidth * scale));
+  const outH = Math.max(10, Math.round(sHeight * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return imageUrl;
+
+  const rotation = cropOptions.rotation || 0;
+  if (rotation) {
+    ctx.translate(outW / 2, outH / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
+    ctx.drawImage(
+      img,
+      sx,
+      sy,
+      sWidth,
+      sHeight,
+      -outW / 2,
+      -outH / 2,
+      outW,
+      outH
+    );
+  } else {
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
+  }
+
+  return canvas.toDataURL("image/png");
 }
 
 /**
@@ -229,7 +310,8 @@ export async function renderStampToCanvas(
 
   // 3. Inner frame content
   // Scale proportionally to the cutter on screen (referenceWidth = cutterWidth or 198)
-  const referenceWidth = cropOptions?.cutterWidth || 198;
+  const activeCrop = cropOptions || config.crop;
+  const referenceWidth = activeCrop?.cutterWidth || config.cutterWidth || 198;
   const padRatio = width / referenceWidth;
   const paddingPx = Math.round((config.padding ?? 13) * padRatio);
 
@@ -253,9 +335,9 @@ export async function renderStampToCanvas(
       ctx.fillStyle = config.paperColor || "#ffffff";
       ctx.fillRect(innerX, innerY, innerW, innerH);
 
-      if (cropOptions) {
+      if (activeCrop) {
         // Precise stencil cutout from canvas coordinate mapping
-        const { rotation = 0 } = cropOptions;
+        const { rotation = 0 } = activeCrop;
         const sourceW = img.naturalWidth || img.width || 300;
         const sourceH = img.naturalHeight || img.height || 375;
 
@@ -265,18 +347,18 @@ export async function renderStampToCanvas(
         let sHeight: number;
 
         if (
-          cropOptions.normWidth !== undefined &&
-          cropOptions.normHeight !== undefined
+          activeCrop.normWidth !== undefined &&
+          activeCrop.normHeight !== undefined
         ) {
-          sx = (cropOptions.normX ?? 0) * sourceW;
-          sy = (cropOptions.normY ?? 0) * sourceH;
-          sWidth = cropOptions.normWidth * sourceW;
-          sHeight = cropOptions.normHeight * sourceH;
+          sx = (activeCrop.normX ?? 0) * sourceW;
+          sy = (activeCrop.normY ?? 0) * sourceH;
+          sWidth = activeCrop.normWidth * sourceW;
+          sHeight = activeCrop.normHeight * sourceH;
         } else {
-          sx = cropOptions.cropX ?? 0;
-          sy = cropOptions.cropY ?? 0;
-          sWidth = cropOptions.cropWidth ?? sourceW;
-          sHeight = cropOptions.cropHeight ?? sourceH;
+          sx = activeCrop.cropX ?? 0;
+          sy = activeCrop.cropY ?? 0;
+          sWidth = activeCrop.cropWidth ?? sourceW;
+          sHeight = activeCrop.cropHeight ?? sourceH;
         }
 
         // Clamp within source bounds
@@ -338,10 +420,6 @@ export async function renderStampToCanvas(
 
       ctx.save();
       ctx.fillStyle = item.color || "#ffffff";
-      ctx.shadowColor = "rgba(0, 0, 0, 0.52)";
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = Math.max(1, Math.round(1 * padRatio));
-      ctx.shadowBlur = Math.max(1, Math.round(1 * padRatio));
 
       const textScaleRatio = width / 340;
       const scaledFontSize = Math.max(8, Math.round(item.fontSize * textScaleRatio));
@@ -385,10 +463,6 @@ export async function renderStampToCanvas(
   if (countryText || denomText || subtitleText) {
     ctx.save();
     ctx.fillStyle = "#ffffff";
-    ctx.shadowColor = "rgba(0, 0, 0, 0.52)";
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = Math.max(1, Math.round(1 * padRatio));
-    ctx.shadowBlur = Math.max(1, Math.round(1 * padRatio));
 
     const insetPx = Math.round(10 * padRatio);
 
@@ -449,9 +523,11 @@ export async function renderStampToCanvas(
  */
 export async function downloadStampPng(
   config: StampConfig,
-  fileName = "postage-stamp.png"
+  fileName = "postage-stamp.png",
+  cropOptions?: CropOptions
 ): Promise<void> {
-  const canvas = await renderStampToCanvas(config, 1200);
+  const activeCrop = cropOptions || config.crop;
+  const canvas = await renderStampToCanvas(config, 1200, activeCrop);
   const dataUrl = canvas.toDataURL("image/png");
 
   const link = document.createElement("a");
@@ -464,10 +540,12 @@ export async function downloadStampPng(
  * Copies a rendered stamp as PNG to clipboard
  */
 export async function copyStampToClipboard(
-  config: StampConfig
+  config: StampConfig,
+  cropOptions?: CropOptions
 ): Promise<boolean> {
   if (!navigator.clipboard || !window.ClipboardItem) return false;
-  const canvas = await renderStampToCanvas(config, 1000);
+  const activeCrop = cropOptions || config.crop;
+  const canvas = await renderStampToCanvas(config, 1000, activeCrop);
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {

@@ -77,6 +77,8 @@ export function PostStampModal({
     let isCancelled = false;
     const cleanConfig: StampConfig = {
       ...item.config,
+      crop: undefined,
+      cutterWidth: item.config.cutterWidth || item.crop?.cutterWidth,
       textItems: [],
       country: "",
       denomination: "",
@@ -258,6 +260,8 @@ export function PostStampModal({
     if (!item) return null;
     const finalConfig: StampConfig = {
       ...item.config,
+      crop: undefined,
+      cutterWidth: item.config.cutterWidth || item.crop?.cutterWidth,
       textItems,
       country: "",
       denomination: "",
@@ -282,6 +286,8 @@ export function PostStampModal({
         previewDataUrl: newPreview,
         config: {
           ...item.config,
+          crop: undefined,
+          cutterWidth: item.config.cutterWidth || item.crop?.cutterWidth,
           textItems,
           country: "",
           denomination: "",
@@ -294,6 +300,8 @@ export function PostStampModal({
         ...item,
         config: {
           ...item.config,
+          crop: undefined,
+          cutterWidth: item.config.cutterWidth || item.crop?.cutterWidth,
           textItems,
         },
       });
@@ -308,6 +316,8 @@ export function PostStampModal({
     if (!item) return;
     const finalConfig: StampConfig = {
       ...item.config,
+      crop: undefined,
+      cutterWidth: item.config.cutterWidth || item.crop?.cutterWidth,
       textItems,
       country: "",
       denomination: "",
@@ -324,6 +334,8 @@ export function PostStampModal({
     if (!item) return;
     const finalConfig: StampConfig = {
       ...item.config,
+      crop: undefined,
+      cutterWidth: item.config.cutterWidth || item.crop?.cutterWidth,
       textItems,
       country: "",
       denomination: "",
@@ -396,7 +408,6 @@ export function PostStampModal({
                       }, ${t.y > 65 ? "-100%" : t.y > 35 ? "-50%" : "0%"})`,
                       color: t.color,
                       fontSize: `${t.fontSize}px`,
-                      textShadow: "0 1px 2px rgba(0,0,0,0.6)",
                     }}
                     className={`absolute cursor-grab active:cursor-grabbing px-1.5 py-0.5 rounded-sm font-bold leading-none select-none transition-shadow ${fontClass} ${
                       isSelected

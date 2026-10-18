@@ -6,6 +6,7 @@ import {
   renderStampToCanvas,
   loadImage,
   computeCropFromCutter,
+  createCroppedImage,
 } from "@/lib/stamp-renderer";
 import { SAMPLE_STAMPS } from "@/lib/sample-stamps";
 import { playStampSound } from "@/lib/sound";
@@ -227,9 +228,27 @@ export default function Home() {
         }
       }
 
-      let previewDataUrl = config.imageUrl;
+      // Physically cut and extract the cropped image fragment
+      let croppedImageUrl = config.imageUrl;
+      if (cropToUse) {
+        try {
+          croppedImageUrl = await createCroppedImage(config.imageUrl, cropToUse);
+        } catch (err) {
+          console.warn("Could not extract cropped image:", err);
+        }
+      }
+
+      // The stamp configuration now points to the physical cropped fragment
+      const stampConfigForCrop: StampConfig = {
+        ...config,
+        imageUrl: croppedImageUrl,
+        crop: undefined,
+        cutterWidth: cropToUse?.cutterWidth || cutter.width,
+      };
+
+      let previewDataUrl = croppedImageUrl;
       try {
-        const canvas = await renderStampToCanvas(config, 600, cropToUse);
+        const canvas = await renderStampToCanvas(stampConfigForCrop, 600);
         previewDataUrl = canvas.toDataURL("image/png");
       } catch (err) {
         console.warn("Stamp canvas rendering failed:", err);
@@ -239,14 +258,14 @@ export default function Home() {
         id: `stamp-${Date.now()}`,
         timestamp: Date.now(),
         previewDataUrl,
-        config: { ...config },
+        config: stampConfigForCrop,
+        crop: cropToUse,
+        rawImageUrl: config.imageUrl, // Preserve full original photo for Restamping
       };
 
       setTimeout(() => {
         setIsStamping(false);
         saveCollection([newItem, ...collection]);
-        setActiveEditingStamp(newItem);
-        setIsPostStampModalOpen(true);
         setStampedToast(true);
         setTimeout(() => setStampedToast(false), 4500);
       }, 350);
@@ -322,11 +341,32 @@ export default function Home() {
   const handleSelectFromCollection = (
     itemOrConfig: StampedItem | StampConfig
   ) => {
+    let selectedConfig: StampConfig;
+    let selectedCrop: CropOptions | undefined;
+
     if ("config" in itemOrConfig) {
-      setConfig(itemOrConfig.config);
+      selectedConfig = {
+        ...itemOrConfig.config,
+        imageUrl: itemOrConfig.rawImageUrl || itemOrConfig.config.imageUrl,
+      };
+      selectedCrop = itemOrConfig.crop || itemOrConfig.config.crop;
     } else {
-      setConfig(itemOrConfig);
+      selectedConfig = itemOrConfig;
+      selectedCrop = itemOrConfig.crop;
     }
+
+    setConfig(selectedConfig);
+
+    if (selectedCrop) {
+      setCutter((prev) => ({
+        ...prev,
+        x: selectedCrop.cutterX ?? prev.x,
+        y: selectedCrop.cutterY ?? prev.y,
+        width: selectedCrop.cutterWidth || prev.width,
+        rotation: selectedCrop.rotation ?? prev.rotation,
+      }));
+    }
+
     switchView("studio");
   };
 

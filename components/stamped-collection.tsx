@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import type { StampConfig } from "@/lib/stamp-renderer";
+import type { StampConfig, CropOptions } from "@/lib/stamp-renderer";
 import { downloadStampPng, copyStampToClipboard } from "@/lib/stamp-renderer";
 import {
   DownloadSimple,
@@ -23,6 +23,8 @@ export type StampedItem = {
   timestamp: number;
   previewDataUrl: string;
   config: StampConfig;
+  crop?: CropOptions;
+  rawImageUrl?: string;
 };
 
 export type StampedCollectionProps = {
