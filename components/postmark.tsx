@@ -71,16 +71,16 @@ export function Postmark({
             />
 
             <text
-              font-size="8.5"
-              font-family="monospace, sans-serif"
-              font-weight="bold"
+              fontSize="8.5"
+              fontFamily="monospace, sans-serif"
+              fontWeight="bold"
               fill="currentColor"
-              letter-spacing="2"
+              letterSpacing="2"
             >
               <textPath
                 href="#circle-arc-top"
                 startOffset="50%"
-                text-anchor="middle"
+                textAnchor="middle"
               >
                 {city.toUpperCase()}
               </textPath>
@@ -89,27 +89,27 @@ export function Postmark({
             <text
               x="85"
               y="93"
-              font-size="10.5"
-              font-family="monospace, sans-serif"
-              font-weight="900"
+              fontSize="10.5"
+              fontFamily="monospace, sans-serif"
+              fontWeight="900"
               fill="currentColor"
-              text-anchor="middle"
-              letter-spacing="1"
+              textAnchor="middle"
+              letterSpacing="1"
             >
               {date}
             </text>
 
             <text
-              font-size="7.5"
-              font-family="monospace, sans-serif"
-              font-weight="bold"
+              fontSize="7.5"
+              fontFamily="monospace, sans-serif"
+              fontWeight="bold"
               fill="currentColor"
-              letter-spacing="2"
+              letterSpacing="2"
             >
               <textPath
                 href="#circle-arc-bottom"
                 startOffset="50%"
-                text-anchor="middle"
+                textAnchor="middle"
               >
                 ★ POSTE ★
               </textPath>
@@ -162,16 +162,16 @@ export function Postmark({
             />
 
             <text
-              font-size="10"
-              font-family="monospace, sans-serif"
-              font-weight="900"
+              fontSize="10"
+              fontFamily="monospace, sans-serif"
+              fontWeight="900"
               fill="currentColor"
-              letter-spacing="3"
+              letterSpacing="3"
             >
               <textPath
                 href="#double-arc-top"
                 startOffset="50%"
-                text-anchor="middle"
+                textAnchor="middle"
               >
                 {city.toUpperCase()}
               </textPath>
@@ -188,12 +188,12 @@ export function Postmark({
             <text
               x="100"
               y="104"
-              font-size="13"
-              font-family="monospace, sans-serif"
-              font-weight="900"
+              fontSize="13"
+              fontFamily="monospace, sans-serif"
+              fontWeight="900"
               fill="currentColor"
-              text-anchor="middle"
-              letter-spacing="1"
+              textAnchor="middle"
+              letterSpacing="1"
             >
               {date}
             </text>
@@ -207,16 +207,16 @@ export function Postmark({
             />
 
             <text
-              font-size="9"
-              font-family="monospace, sans-serif"
-              font-weight="bold"
+              fontSize="9"
+              fontFamily="monospace, sans-serif"
+              fontWeight="bold"
               fill="currentColor"
-              letter-spacing="3"
+              letterSpacing="3"
             >
               <textPath
                 href="#double-arc-bottom"
                 startOffset="50%"
-                text-anchor="middle"
+                textAnchor="middle"
               >
                 OFFICIAL MAIL
               </textPath>
@@ -246,48 +246,48 @@ export function Postmark({
             <text
               x="110"
               y="75"
-              font-size="11"
-              font-family="sans-serif"
-              font-weight="900"
+              fontSize="11"
+              fontFamily="sans-serif"
+              fontWeight="900"
               fill="currentColor"
-              letter-spacing="3"
-              text-anchor="middle"
+              letterSpacing="3"
+              textAnchor="middle"
             >
               AIR MAIL
             </text>
             <text
               x="110"
               y="100"
-              font-size="9"
-              font-family="monospace, sans-serif"
-              font-weight="bold"
+              fontSize="9"
+              fontFamily="monospace, sans-serif"
+              fontWeight="bold"
               fill="currentColor"
-              letter-spacing="2"
-              text-anchor="middle"
+              letterSpacing="2"
+              textAnchor="middle"
             >
               {city.toUpperCase()}
             </text>
             <text
               x="110"
               y="125"
-              font-size="11"
-              font-family="monospace, sans-serif"
-              font-weight="900"
+              fontSize="11"
+              fontFamily="monospace, sans-serif"
+              fontWeight="900"
               fill="currentColor"
-              letter-spacing="1"
-              text-anchor="middle"
+              letterSpacing="1"
+              textAnchor="middle"
             >
               {date}
             </text>
             <text
               x="110"
               y="142"
-              font-size="7.5"
-              font-family="monospace, sans-serif"
-              font-weight="bold"
+              fontSize="7.5"
+              fontFamily="monospace, sans-serif"
+              fontWeight="bold"
               fill="currentColor"
-              letter-spacing="2"
-              text-anchor="middle"
+              letterSpacing="2"
+              textAnchor="middle"
             >
               PAR AVION
             </text>
