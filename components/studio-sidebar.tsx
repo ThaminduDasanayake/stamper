@@ -17,6 +17,8 @@ import {
   Trash,
   Printer,
   Sparkle,
+  ArrowsOutSimple,
+  ArrowUpLeft,
 } from "@phosphor-icons/react";
 
 export type StudioSidebarProps = {
@@ -30,19 +32,22 @@ export type StudioSidebarProps = {
   onSelectFromCollection: (item: StampedItem) => void;
   onDeleteFromCollection: (id: string) => void;
   onOpenPrintSheet: () => void;
-  onAutoResizeToImage?: (mode?: "full" | "half") => void;
+  onAutoResizeToImage?: (mode?: "full" | "corner" | "half") => void;
   isStamping?: boolean;
 };
 
 export function StudioSidebar({
   config,
+  cutter,
   collection,
   onChangeConfig,
+  onChangeCutter,
   onResetCutter,
   onStampOut,
   onSelectFromCollection,
   onDeleteFromCollection,
   onOpenPrintSheet,
+  onAutoResizeToImage,
   isStamping = false,
 }: StudioSidebarProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);

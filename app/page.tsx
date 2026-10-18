@@ -99,7 +99,7 @@ export default function Home() {
 
   // Auto resize stamp cutter to dimensions of current image
   const handleAutoResizeToImage = useCallback(
-    (mode: "full" | "half" = "full") => {
+    (mode: "full" | "corner" | "half" = "full") => {
       if (!config.imageUrl) return;
       const img = new Image();
       img.onload = () => {
@@ -130,6 +130,19 @@ export default function Home() {
             width: targetOuterW,
             rotation: 0,
           });
+          setConfig((prev) => ({
+            ...prev,
+            aspectRatio: "auto",
+            customAspectRatio: customRatio,
+            verticalPerforations: autoVPerfs,
+          }));
+        } else if (mode === "corner") {
+          setCutter((prev) => ({
+            ...prev,
+            x: imageDisplayX - padding,
+            y: imageDisplayY - padding,
+            rotation: 0,
+          }));
         } else {
           const halfW = Math.round(targetOuterW * 0.55);
           const halfH = Math.round(halfW * customRatio);
@@ -140,13 +153,6 @@ export default function Home() {
             rotation: 0,
           });
         }
-
-        setConfig((prev) => ({
-          ...prev,
-          aspectRatio: "auto",
-          customAspectRatio: customRatio,
-          verticalPerforations: autoVPerfs,
-        }));
       };
       img.src = config.imageUrl;
     },
@@ -389,6 +395,7 @@ export default function Home() {
               onChangeCutter={handleChangeCutter}
               onChangeConfig={handleConfigChange}
               onStampOut={handleStampOut}
+              onAutoResizeToImage={handleAutoResizeToImage}
               isStamping={isStamping}
             />
           </main>

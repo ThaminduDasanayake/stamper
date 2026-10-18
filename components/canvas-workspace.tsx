@@ -10,6 +10,8 @@ import {
   HandGrabbing,
   SealCheck,
   Cursor,
+  ArrowsOutSimple,
+  ArrowUpLeft,
 } from "@phosphor-icons/react";
 
 export type StampCutterState = {
@@ -25,6 +27,7 @@ export type CanvasWorkspaceProps = {
   onChangeCutter: (patch: Partial<StampCutterState>) => void;
   onChangeConfig?: (patch: Partial<StampConfig>) => void;
   onStampOut: (crop: CropOptions) => void;
+  onAutoResizeToImage?: (mode?: "full" | "corner") => void;
   isStamping?: boolean;
 };
 
@@ -35,6 +38,7 @@ export function CanvasWorkspace({
   cutter,
   onChangeCutter,
   onStampOut,
+  onAutoResizeToImage,
   isStamping = false,
 }: CanvasWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -302,6 +306,35 @@ export function CanvasWorkspace({
 
     onStampOut(crop);
   }, [cutter, cutterHeight, onStampOut, aspectMultiplier]);
+
+  // Auto Resize to fit image or Snap to top-left corner
+  const handleFitImage = useCallback(() => {
+    if (onAutoResizeToImage) {
+      onAutoResizeToImage("full");
+      return;
+    }
+    const padding = 13;
+    const targetOuterW = imageDisplayWidth + padding * 2;
+    onChangeCutter({
+      x: imageDisplayX - padding,
+      y: imageDisplayY - padding,
+      width: targetOuterW,
+      rotation: 0,
+    });
+  }, [onAutoResizeToImage, onChangeCutter]);
+
+  const handleSnapTopLeft = useCallback(() => {
+    if (onAutoResizeToImage) {
+      onAutoResizeToImage("corner");
+      return;
+    }
+    const padding = 13;
+    onChangeCutter({
+      x: imageDisplayX - padding,
+      y: imageDisplayY - padding,
+      rotation: 0,
+    });
+  }, [onAutoResizeToImage, onChangeCutter]);
 
   // Stamp Cutter Dragging Handlers
   const handleCutterPointerDown = (e: React.PointerEvent) => {
@@ -750,6 +783,30 @@ export function CanvasWorkspace({
               weight={toolMode === "pan" ? "fill" : "regular"}
             />
             <span>Pan</span>
+          </button>
+        </div>
+
+        <i className="h-3.5 w-px bg-white/20" />
+
+        {/* Auto Resize & Top-Left Corner Snap */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleFitImage}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-zinc-300 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
+            title="Auto resize stamp to fit entire image from top-left corner"
+          >
+            <ArrowsOutSimple size={13} weight="bold" />
+            <span>Fit Image</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSnapTopLeft}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-zinc-300 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
+            title="Snap stamp directly to top-left corner of image"
+          >
+            <ArrowUpLeft size={13} weight="bold" />
+            <span>Top-Left</span>
           </button>
         </div>
 
