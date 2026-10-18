@@ -1,56 +1,54 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import type { StampConfig } from "@/lib/stamp-renderer";
 import type { StampedItem } from "@/components/stamped-collection";
 import type { StampCutterState } from "@/components/canvas-workspace";
 import { SAMPLE_STAMPS } from "@/lib/sample-stamps";
 import { processImageFile } from "@/lib/image-utils";
-import { downloadStampPng, copyStampToClipboard } from "@/lib/stamp-renderer";
 import {
   UploadSimple,
   SealCheck,
-  Archive,
-  DownloadSimple,
-  CopySimple,
-  Check,
-  Trash,
-  Printer,
   Sparkle,
   ArrowsOutSimple,
   ArrowUpLeft,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowDownRight,
 } from "@phosphor-icons/react";
 
 export type StudioSidebarProps = {
   config: StampConfig;
   cutter: StampCutterState;
-  collection: StampedItem[];
+  collection?: StampedItem[];
   onChangeConfig: (patch: Partial<StampConfig>) => void;
   onChangeCutter: (patch: Partial<StampCutterState>) => void;
   onResetCutter: () => void;
   onStampOut: () => void;
-  onSelectFromCollection: (item: StampedItem) => void;
-  onDeleteFromCollection: (id: string) => void;
-  onOpenPrintSheet: () => void;
-  onAutoResizeToImage?: (mode?: "full" | "corner" | "half") => void;
+  onSelectFromCollection?: (item: StampedItem) => void;
+  onDeleteFromCollection?: (id: string) => void;
+  onOpenPrintSheet?: () => void;
+  onAutoResizeToImage?: (
+    mode?:
+      | "full"
+      | "corner"
+      | "top-left"
+      | "top-right"
+      | "bottom-left"
+      | "bottom-right"
+      | "half"
+  ) => void;
   isStamping?: boolean;
 };
 
 export function StudioSidebar({
   config,
-  cutter,
-  collection,
   onChangeConfig,
-  onChangeCutter,
   onResetCutter,
   onStampOut,
-  onSelectFromCollection,
-  onDeleteFromCollection,
-  onOpenPrintSheet,
   onAutoResizeToImage,
   isStamping = false,
 }: StudioSidebarProps) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,21 +84,6 @@ export function StudioSidebar({
       subtitle: "Field archive · 01",
     });
     onResetCutter();
-  };
-
-  const handleCopyItem = async (item: StampedItem) => {
-    const success = await copyStampToClipboard(item.config);
-    if (success) {
-      setCopiedId(item.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    }
-  };
-
-  const handleDownloadItem = (item: StampedItem) => {
-    const safeTitle = (item.config.country || "stamp")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "-");
-    downloadStampPng(item.config, `${safeTitle}-${item.timestamp}.png`);
   };
 
   return (
@@ -189,6 +172,66 @@ export function StudioSidebar({
           </div>
         </div>
 
+        {/* Stamp Sizing & Alignment */}
+        <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
+          <label className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase">
+            Fit & Alignment
+          </label>
+          <button
+            type="button"
+            onClick={() => onAutoResizeToImage?.("full")}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/90 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800 active:scale-98"
+            title="Auto-resize to fit entire image"
+          >
+            <ArrowsOutSimple size={13} weight="bold" />
+            <span>Fit to Image</span>
+          </button>
+
+          <div className="mt-2.5">
+            <span className="text-[10px] font-medium text-zinc-500">
+              Snap to Corner:
+            </span>
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => onAutoResizeToImage?.("top-left")}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 py-1.5 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800 active:scale-98"
+                title="Snap stamp directly to the top-left corner"
+              >
+                <ArrowUpLeft size={13} weight="bold" />
+                <span>Top-Left</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onAutoResizeToImage?.("top-right")}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 py-1.5 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800 active:scale-98"
+                title="Snap stamp directly to the top-right corner"
+              >
+                <ArrowUpRight size={13} weight="bold" />
+                <span>Top-Right</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onAutoResizeToImage?.("bottom-left")}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 py-1.5 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800 active:scale-98"
+                title="Snap stamp directly to the bottom-left corner"
+              >
+                <ArrowDownLeft size={13} weight="bold" />
+                <span>Bottom-Left</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onAutoResizeToImage?.("bottom-right")}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 py-1.5 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800 active:scale-98"
+                title="Snap stamp directly to the bottom-right corner"
+              >
+                <ArrowDownRight size={13} weight="bold" />
+                <span>Bottom-Right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Label & Number (clean and minimal) */}
         <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
           <label className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase">
@@ -234,87 +277,6 @@ export function StudioSidebar({
               className="mt-0.5 w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-white outline-none focus:border-zinc-600"
             />
           </div>
-        </div>
-
-        {/* Stamped Collection */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-              <Archive size={14} />
-              <span>Stamped Collection</span>
-              <span className="py-0.2 rounded-full bg-zinc-800 px-2 font-mono text-[10px] text-zinc-300">
-                {collection.length}
-              </span>
-            </div>
-            {collection.length > 0 && (
-              <button
-                type="button"
-                onClick={onOpenPrintSheet}
-                className="flex items-center gap-1 text-[11px] font-semibold text-blue-400 hover:text-blue-300"
-              >
-                <Printer size={13} />
-                <span>Sheet</span>
-              </button>
-            )}
-          </div>
-
-          {collection.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-800 p-6 text-center text-xs text-zinc-500">
-              No stamps yet. Hover on the photo and click to stamp!
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {collection.map((item) => (
-                <div
-                  key={item.id}
-                  className="group relative flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-1.5 transition-all hover:border-zinc-700"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.previewDataUrl}
-                    alt="Stamped preview"
-                    className="h-28 w-full cursor-pointer rounded-sm object-contain"
-                    onClick={() => onSelectFromCollection(item)}
-                  />
-                  <div className="mt-1 flex items-center justify-between px-1">
-                    <span className="truncate font-mono text-[9px] font-bold text-zinc-400">
-                      {item.config.country || "Stamp"}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyItem(item)}
-                        className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                        title="Copy PNG"
-                      >
-                        {copiedId === item.id ? (
-                          <Check size={11} className="text-emerald-400" />
-                        ) : (
-                          <CopySimple size={11} />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadItem(item)}
-                        className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                        title="Download PNG"
-                      >
-                        <DownloadSimple size={11} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteFromCollection(item.id)}
-                        className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-rose-400"
-                        title="Delete"
-                      >
-                        <Trash size={11} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </aside>

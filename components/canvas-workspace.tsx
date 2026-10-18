@@ -12,6 +12,9 @@ import {
   Cursor,
   ArrowsOutSimple,
   ArrowUpLeft,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowDownRight,
 } from "@phosphor-icons/react";
 
 export type StampCutterState = {
@@ -21,13 +24,21 @@ export type StampCutterState = {
   rotation: number; // degrees
 };
 
+export type SnapCorner =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
 export type CanvasWorkspaceProps = {
   config: StampConfig;
   cutter: StampCutterState;
   onChangeCutter: (patch: Partial<StampCutterState>) => void;
   onChangeConfig?: (patch: Partial<StampConfig>) => void;
   onStampOut: (crop: CropOptions) => void;
-  onAutoResizeToImage?: (mode?: "full" | "corner") => void;
+  onAutoResizeToImage?: (
+    mode?: "full" | "corner" | SnapCorner | "half"
+  ) => void;
   isStamping?: boolean;
 };
 
@@ -323,18 +334,58 @@ export function CanvasWorkspace({
     });
   }, [onAutoResizeToImage, onChangeCutter]);
 
-  const handleSnapTopLeft = useCallback(() => {
-    if (onAutoResizeToImage) {
-      onAutoResizeToImage("corner");
-      return;
-    }
-    const padding = 13;
-    onChangeCutter({
-      x: imageDisplayX - padding,
-      y: imageDisplayY - padding,
-      rotation: 0,
-    });
-  }, [onAutoResizeToImage, onChangeCutter]);
+  const handleSnapCorner = useCallback(
+    (corner: SnapCorner) => {
+      const padding = 13;
+      const imgEl = imageElementRef.current;
+      const naturalW = imgEl?.naturalWidth || imageDisplayWidth;
+      const naturalH =
+        imgEl?.naturalHeight ||
+        Math.round(imageDisplayWidth * aspectMultiplier);
+      const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
+
+      let newX = imageDisplayX - padding;
+      let newY = imageDisplayY - padding;
+
+      if (corner === "top-left") {
+        newX = imageDisplayX - padding;
+        newY = imageDisplayY - padding;
+      } else if (corner === "top-right") {
+        newX = Math.round(
+          imageDisplayX + imageDisplayWidth - cutter.width + padding
+        );
+        newY = imageDisplayY - padding;
+      } else if (corner === "bottom-left") {
+        newX = imageDisplayX - padding;
+        newY = Math.round(imageDisplayY + displayH - cutterHeight + padding);
+      } else if (corner === "bottom-right") {
+        newX = Math.round(
+          imageDisplayX + imageDisplayWidth - cutter.width + padding
+        );
+        newY = Math.round(imageDisplayY + displayH - cutterHeight + padding);
+      }
+
+      onChangeCutter({
+        x: newX,
+        y: newY,
+        rotation: 0,
+      });
+
+      if (onAutoResizeToImage) {
+        onAutoResizeToImage(corner);
+      }
+    },
+    [
+      cutter.width,
+      cutterHeight,
+      imageDisplayWidth,
+      imageDisplayX,
+      imageDisplayY,
+      aspectMultiplier,
+      onChangeCutter,
+      onAutoResizeToImage,
+    ]
+  );
 
   // Stamp Cutter Dragging Handlers
   const handleCutterPointerDown = (e: React.PointerEvent) => {
@@ -788,26 +839,61 @@ export function CanvasWorkspace({
 
         <i className="h-3.5 w-px bg-white/20" />
 
-        {/* Auto Resize & Top-Left Corner Snap */}
-        <div className="flex items-center gap-1">
+        {/* Auto Fit & 4 Corners Alignment */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={handleFitImage}
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-zinc-300 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
-            title="Auto resize stamp to fit entire image from top-left corner"
+            title="Auto resize stamp to fit entire image"
           >
             <ArrowsOutSimple size={13} weight="bold" />
             <span>Fit Image</span>
           </button>
-          <button
-            type="button"
-            onClick={handleSnapTopLeft}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-zinc-300 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
-            title="Snap stamp directly to top-left corner of image"
+
+          <span className="text-zinc-600">·</span>
+
+          <div
+            className="flex items-center gap-0.5 rounded-lg bg-white/5 p-0.5"
+            title="Snap stamp to image corners"
           >
-            <ArrowUpLeft size={13} weight="bold" />
-            <span>Top-Left</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => handleSnapCorner("top-left")}
+              className="flex size-6 items-center justify-center rounded text-zinc-300 transition-colors hover:bg-white/20 hover:text-white active:scale-95"
+              title="Snap to Top-Left corner"
+              aria-label="Snap to Top-Left corner"
+            >
+              <ArrowUpLeft size={13} weight="bold" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSnapCorner("top-right")}
+              className="flex size-6 items-center justify-center rounded text-zinc-300 transition-colors hover:bg-white/20 hover:text-white active:scale-95"
+              title="Snap to Top-Right corner"
+              aria-label="Snap to Top-Right corner"
+            >
+              <ArrowUpRight size={13} weight="bold" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSnapCorner("bottom-left")}
+              className="flex size-6 items-center justify-center rounded text-zinc-300 transition-colors hover:bg-white/20 hover:text-white active:scale-95"
+              title="Snap to Bottom-Left corner"
+              aria-label="Snap to Bottom-Left corner"
+            >
+              <ArrowDownLeft size={13} weight="bold" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSnapCorner("bottom-right")}
+              className="flex size-6 items-center justify-center rounded text-zinc-300 transition-colors hover:bg-white/20 hover:text-white active:scale-95"
+              title="Snap to Bottom-Right corner"
+              aria-label="Snap to Bottom-Right corner"
+            >
+              <ArrowDownRight size={13} weight="bold" />
+            </button>
+          </div>
         </div>
 
         <i className="h-3.5 w-px bg-white/20" />

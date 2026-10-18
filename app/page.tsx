@@ -97,9 +97,18 @@ export default function Home() {
     setCutter(INITIAL_CUTTER);
   };
 
-  // Auto resize stamp cutter to dimensions of current image
+  // Auto resize stamp cutter to dimensions of current image or align to corners
   const handleAutoResizeToImage = useCallback(
-    (mode: "full" | "corner" | "half" = "full") => {
+    (
+      mode:
+        | "full"
+        | "corner"
+        | "top-left"
+        | "top-right"
+        | "bottom-left"
+        | "bottom-right"
+        | "half" = "full"
+    ) => {
       if (!config.imageUrl) return;
       const img = new Image();
       img.onload = () => {
@@ -136,13 +145,44 @@ export default function Home() {
             customAspectRatio: customRatio,
             verticalPerforations: autoVPerfs,
           }));
-        } else if (mode === "corner") {
+        } else if (mode === "corner" || mode === "top-left") {
           setCutter((prev) => ({
             ...prev,
             x: imageDisplayX - padding,
             y: imageDisplayY - padding,
             rotation: 0,
           }));
+        } else if (mode === "top-right") {
+          setCutter((prev) => ({
+            ...prev,
+            x: Math.round(
+              imageDisplayX + imageDisplayWidth - prev.width + padding
+            ),
+            y: imageDisplayY - padding,
+            rotation: 0,
+          }));
+        } else if (mode === "bottom-left") {
+          setCutter((prev) => {
+            const cutterH = Math.round(prev.width * (5 / 4));
+            return {
+              ...prev,
+              x: imageDisplayX - padding,
+              y: Math.round(imageDisplayY + displayH - cutterH + padding),
+              rotation: 0,
+            };
+          });
+        } else if (mode === "bottom-right") {
+          setCutter((prev) => {
+            const cutterH = Math.round(prev.width * (5 / 4));
+            return {
+              ...prev,
+              x: Math.round(
+                imageDisplayX + imageDisplayWidth - prev.width + padding
+              ),
+              y: Math.round(imageDisplayY + displayH - cutterH + padding),
+              rotation: 0,
+            };
+          });
         } else {
           const halfW = Math.round(targetOuterW * 0.55);
           const halfH = Math.round(halfW * customRatio);
