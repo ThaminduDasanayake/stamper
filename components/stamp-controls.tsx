@@ -3,18 +3,22 @@
 import React, { useRef } from "react";
 import type { StampConfig, StampFilter } from "@/lib/stamp-renderer";
 import { SAMPLE_STAMPS } from "@/lib/sample-stamps";
+import { processImageFile } from "@/lib/image-utils";
 import {
   UploadSimple,
   Image as ImageIcon,
   Palette,
   ArrowsClockwise,
   EnvelopeSimple,
+  SealCheck,
 } from "@phosphor-icons/react";
 
 export type StampControlsProps = {
   config: StampConfig;
   onChange: (patch: Partial<StampConfig>) => void;
   onResetPanZoom: () => void;
+  onStampIt?: () => void;
+  isStamping?: boolean;
 };
 
 const PAPER_PRESETS = [
@@ -54,30 +58,43 @@ export function StampControls({
   config,
   onChange,
   onResetPanZoom,
+  onStampIt,
+  isStamping = false,
 }: StampControlsProps) {
   const [activeTab, setActiveTab] = React.useState<
     "image" | "paper" | "postal"
   >("image");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const url = event.target?.result as string;
-      if (url) {
-        onChange({
-          imageUrl: url,
-          panX: 0,
-          panY: 0,
-          zoom: 1,
-          rotation: 0,
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const optimizedUrl = await processImageFile(file);
+      onChange({
+        imageUrl: optimizedUrl,
+        panX: 0,
+        panY: 0,
+        zoom: 1,
+        rotation: 0,
+      });
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target?.result as string;
+        if (url) {
+          onChange({
+            imageUrl: url,
+            panX: 0,
+            panY: 0,
+            zoom: 1,
+            rotation: 0,
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handlePickSample = (sampleId: string) => {
@@ -273,6 +290,25 @@ export function StampControls({
               ))}
             </div>
           </div>
+
+          {/* Quick Stamp Action inside Image Tab */}
+          {onStampIt && (
+            <div className="border-t border-zinc-100 pt-2 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={onStampIt}
+                disabled={isStamping}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold tracking-wide uppercase shadow-md transition-all active:scale-98 ${
+                  isStamping
+                    ? "scale-95 bg-amber-600 text-white"
+                    : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                }`}
+              >
+                <SealCheck size={18} weight="fill" />
+                {isStamping ? "Stamping..." : "Stamp It Out!"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

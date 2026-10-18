@@ -1,5 +1,6 @@
 import { getStampPoints } from "@/components/stamp";
 import type { PostmarkStyle } from "@/components/postmark";
+export type { PostmarkStyle };
 
 export type StampFilter =
   "none" | "vintage" | "sepia" | "cyanotype" | "monochrome";
@@ -42,11 +43,63 @@ export type StampConfig = {
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Only set crossOrigin for remote http/https URLs.
+    // Setting crossOrigin on data: or blob: URIs causes CORS failures in Safari!
+    if (src.startsWith("http://") || src.startsWith("https://")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve(img);
     img.onerror = (e) => reject(e);
     img.src = src;
   });
+}
+
+export type CropOptions = {
+  cropX: number; // in image natural pixels
+  cropY: number;
+  cropWidth: number;
+  cropHeight: number;
+  rotation?: number;
+};
+
+export function computeCropFromCutter(
+  cutter: { x: number; y: number; width: number; rotation: number },
+  config: StampConfig,
+  naturalWidth: number,
+  naturalHeight: number,
+  imageDisplayWidth = 680,
+  imageDisplayX = 40,
+  imageDisplayY = 40
+): CropOptions {
+  let aspectMultiplier = 5 / 4;
+  if (config.aspectRatio === "1/1") aspectMultiplier = 1;
+  else if (config.aspectRatio === "5/4") aspectMultiplier = 4 / 5;
+  else if (config.aspectRatio === "3/4") aspectMultiplier = 4 / 3;
+
+  const cutterHeight = Math.round(cutter.width * aspectMultiplier);
+  const naturalW = naturalWidth || imageDisplayWidth;
+  const naturalH = naturalHeight || imageDisplayWidth * aspectMultiplier;
+  const displayH = (naturalH / naturalW) * imageDisplayWidth;
+
+  const padding = config.padding;
+  const innerX = cutter.x + padding;
+  const innerY = cutter.y + padding;
+  const innerW = Math.max(10, cutter.width - padding * 2);
+  const innerH = Math.max(10, cutterHeight - padding * 2);
+
+  const scaleX = naturalW / imageDisplayWidth;
+  const scaleY = naturalH / displayH;
+
+  const relX = innerX - imageDisplayX;
+  const relY = innerY - imageDisplayY;
+
+  return {
+    cropX: Math.round(relX * scaleX),
+    cropY: Math.round(relY * scaleY),
+    cropWidth: Math.round(innerW * scaleX),
+    cropHeight: Math.round(innerH * scaleY),
+    rotation: cutter.rotation,
+  };
 }
 
 /**
@@ -54,7 +107,8 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
  */
 export async function renderStampToCanvas(
   config: StampConfig,
-  targetWidth = 1000
+  targetWidth = 1000,
+  cropOptions?: CropOptions
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -126,41 +180,82 @@ export async function renderStampToCanvas(
       ctx.fillStyle = config.paperColor;
       ctx.fillRect(innerX, innerY, innerW, innerH);
 
-      // Translate to center + user pan
-      const centerX = innerX + innerW / 2 + (config.panX / 100) * innerW;
-      const centerY = innerY + innerH / 2 + (config.panY / 100) * innerH;
-
-      ctx.translate(centerX, centerY);
-      ctx.rotate((config.rotation * Math.PI) / 180);
-
-      // Scale to cover inner box * user zoom
-      const imgAspect = img.width / img.height;
-      const innerAspect = innerW / innerH;
-      let drawW: number;
-      let drawH: number;
-
-      if (imgAspect > innerAspect) {
-        drawH = innerH * config.zoom;
-        drawW = drawH * imgAspect;
-      } else {
-        drawW = innerW * config.zoom;
-        drawH = drawW / imgAspect;
+      // Apply CSS-like canvas filters defensively (Safari fallback)
+      try {
+        if ("filter" in ctx) {
+          if (config.filter === "vintage") {
+            ctx.filter = "contrast(1.3) sepia(0.35) grayscale(0.2)";
+          } else if (config.filter === "sepia") {
+            ctx.filter = "sepia(0.85) contrast(1.15) brightness(0.95)";
+          } else if (config.filter === "cyanotype") {
+            ctx.filter = "contrast(1.4) hue-rotate(180deg) saturate(1.8)";
+          } else if (config.filter === "monochrome") {
+            ctx.filter = "grayscale(1) contrast(1.35)";
+          } else {
+            ctx.filter = "none";
+          }
+        }
+      } catch {
+        // Fallback for browsers that restrict canvas filter
       }
 
-      // Apply CSS-like canvas filters
-      if (config.filter === "vintage") {
-        ctx.filter = "contrast(1.3) sepia(0.35) grayscale(0.2)";
-      } else if (config.filter === "sepia") {
-        ctx.filter = "sepia(0.85) contrast(1.15) brightness(0.95)";
-      } else if (config.filter === "cyanotype") {
-        ctx.filter = "contrast(1.4) hue-rotate(180deg) saturate(1.8)";
-      } else if (config.filter === "monochrome") {
-        ctx.filter = "grayscale(1) contrast(1.35)";
+      if (cropOptions) {
+        // Precise stencil cutout from canvas coordinate mapping
+        const {
+          cropX,
+          cropY,
+          cropWidth,
+          cropHeight,
+          rotation = 0,
+        } = cropOptions;
+        const centerX = innerX + innerW / 2;
+        const centerY = innerY + innerH / 2;
+
+        ctx.translate(centerX, centerY);
+        ctx.rotate((rotation * Math.PI) / 180);
+
+        ctx.drawImage(
+          img,
+          cropX,
+          cropY,
+          cropWidth,
+          cropHeight,
+          -innerW / 2,
+          -innerH / 2,
+          innerW,
+          innerH
+        );
       } else {
-        ctx.filter = "none";
+        // Standard centered pan/zoom drawing
+        const centerX = innerX + innerW / 2 + (config.panX / 100) * innerW;
+        const centerY = innerY + innerH / 2 + (config.panY / 100) * innerH;
+
+        ctx.translate(centerX, centerY);
+        ctx.rotate((config.rotation * Math.PI) / 180);
+
+        const imgAspect = img.width / img.height;
+        const innerAspect = innerW / innerH;
+        let drawW: number;
+        let drawH: number;
+
+        if (imgAspect > innerAspect) {
+          drawH = innerH * config.zoom;
+          drawW = drawH * imgAspect;
+        } else {
+          drawW = innerW * config.zoom;
+          drawH = drawW / imgAspect;
+        }
+
+        if (
+          Number.isFinite(drawW) &&
+          Number.isFinite(drawH) &&
+          drawW > 0 &&
+          drawH > 0
+        ) {
+          ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        }
       }
 
-      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
     } catch {
       // Fallback placeholder pattern if image fails to load
