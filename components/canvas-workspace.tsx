@@ -563,7 +563,9 @@ export function CanvasWorkspace({
             top: `${cutter.y}px`,
             width: `${cutter.width}px`,
             height: `${cutterHeight}px`,
-            transform: `rotate(${cutter.rotation}deg)`,
+            transform: cutter.rotation
+              ? `rotate(${cutter.rotation}deg)`
+              : undefined,
             transformOrigin: "center center",
           }}
           title="Drag stamp to position. Drag corners to resize."

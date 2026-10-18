@@ -48,7 +48,7 @@ const INITIAL_CUTTER: StampCutterState = {
   x: 240,
   y: 120,
   width: 198,
-  rotation: -2,
+  rotation: 0,
 };
 
 export default function Home() {
