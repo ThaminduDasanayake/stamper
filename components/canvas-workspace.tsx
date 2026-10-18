@@ -61,13 +61,26 @@ export function CanvasWorkspace({
   } | null>(null);
   const [isSelectingBand, setIsSelectingBand] = useState(false);
 
-  // Stamp cutter dragging
+  // Stamp cutter dragging & resizing
   const [isDraggingCutter, setIsDraggingCutter] = useState(false);
   const cutterDragStart = useRef<{
     pointerX: number;
     pointerY: number;
     cutterX: number;
     cutterY: number;
+  } | null>(null);
+
+  type ResizeCorner = "nw" | "ne" | "sw" | "se";
+  const [resizingCorner, setResizingCorner] = useState<ResizeCorner | null>(
+    null
+  );
+  const resizeStartRef = useRef<{
+    corner: ResizeCorner;
+    pointerX: number;
+    pointerY: number;
+    cutterX: number;
+    cutterY: number;
+    cutterWidth: number;
   } | null>(null);
 
   // Background canvas panning ref
@@ -484,6 +497,104 @@ export function CanvasWorkspace({
     cutterDragStart.current = null;
   };
 
+  // Stamp cutter corner resizing handlers
+  const handleResizePointerDown = (
+    e: React.PointerEvent,
+    corner: ResizeCorner
+  ) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    setResizingCorner(corner);
+    resizeStartRef.current = {
+      corner,
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      cutterX: cutter.x,
+      cutterY: cutter.y,
+      cutterWidth: cutter.width,
+    };
+  };
+
+  const handleResizePointerMove = (e: React.PointerEvent) => {
+    if (!resizingCorner || !resizeStartRef.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const { corner, pointerX, pointerY, cutterX, cutterY, cutterWidth } =
+      resizeStartRef.current;
+    const deltaX = (e.clientX - pointerX) / zoom;
+    const deltaY = (e.clientY - pointerY) / zoom;
+
+    let widthChange = 0;
+    if (corner === "se") {
+      widthChange =
+        Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
+          ? deltaX
+          : deltaY / aspectMultiplier;
+      const newWidth = Math.max(
+        100,
+        Math.min(700, Math.round(cutterWidth + widthChange))
+      );
+      onChangeCutter({ width: newWidth });
+    } else if (corner === "sw") {
+      widthChange =
+        Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
+          ? -deltaX
+          : deltaY / aspectMultiplier;
+      const newWidth = Math.max(
+        100,
+        Math.min(700, Math.round(cutterWidth + widthChange))
+      );
+      const actualDeltaW = newWidth - cutterWidth;
+      onChangeCutter({
+        x: Math.round(cutterX - actualDeltaW),
+        width: newWidth,
+      });
+    } else if (corner === "ne") {
+      widthChange =
+        Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
+          ? deltaX
+          : -deltaY / aspectMultiplier;
+      const newWidth = Math.max(
+        100,
+        Math.min(700, Math.round(cutterWidth + widthChange))
+      );
+      const actualDeltaW = newWidth - cutterWidth;
+      const deltaH = actualDeltaW * aspectMultiplier;
+      onChangeCutter({
+        y: Math.round(cutterY - deltaH),
+        width: newWidth,
+      });
+    } else if (corner === "nw") {
+      widthChange =
+        Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
+          ? -deltaX
+          : -deltaY / aspectMultiplier;
+      const newWidth = Math.max(
+        100,
+        Math.min(700, Math.round(cutterWidth + widthChange))
+      );
+      const actualDeltaW = newWidth - cutterWidth;
+      const deltaH = actualDeltaW * aspectMultiplier;
+      onChangeCutter({
+        x: Math.round(cutterX - actualDeltaW),
+        y: Math.round(cutterY - deltaH),
+        width: newWidth,
+      });
+    }
+  };
+
+  const handleResizePointerUp = (e: React.PointerEvent) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setResizingCorner(null);
+    resizeStartRef.current = null;
+  };
+
   // Perform Stamp Cutout
   const handlePerformStamp = () => {
     const imgEl = imageElementRef.current;
@@ -620,7 +731,11 @@ export function CanvasWorkspace({
           onPointerUp={handleCutterPointerUp}
           onPointerCancel={handleCutterPointerUp}
           className={`stamp-cutter-handle absolute transition-transform select-none ${
-            isDraggingCutter ? "z-30 cursor-grabbing" : "z-20 cursor-grab"
+            isDraggingCutter
+              ? "z-30 cursor-grabbing"
+              : resizingCorner
+                ? "z-30"
+                : "z-20 cursor-grab"
           } ${
             isStamping
               ? "translate-y-3 scale-90 brightness-90"
@@ -744,13 +859,70 @@ export function CanvasWorkspace({
             </div>
           </Stamp>
 
-          {/* Cutter Guide Pill */}
+          {/* Bounding Outline & 4 Corner Resize Handles */}
           {showOutlines && (
-            <div className="pointer-events-none absolute inset-x-0 -bottom-7 flex justify-center">
-              <span className="flex items-center gap-1 rounded-full bg-black/80 px-2.5 py-0.5 text-[10px] font-medium text-white shadow-lg backdrop-blur-xs">
-                <HandGrabbing size={11} /> Move stamp cutter
-              </span>
-            </div>
+            <>
+              {/* Crisp bounding outline box */}
+              <div
+                className="pointer-events-none absolute -inset-1 rounded-sm border border-blue-500/80 shadow-xs"
+                style={{
+                  outline: "1px dashed rgba(59, 130, 246, 0.4)",
+                  outlineOffset: "2px",
+                }}
+              />
+
+              {/* 4 Corner Squares to Drag & Resize */}
+              {/* Top-Left (NW) */}
+              <div
+                onPointerDown={(e) => handleResizePointerDown(e, "nw")}
+                onPointerMove={handleResizePointerMove}
+                onPointerUp={handleResizePointerUp}
+                onPointerCancel={handleResizePointerUp}
+                className="absolute -top-2.5 -left-2.5 z-40 size-3.5 cursor-nwse-resize rounded-[2px] border-2 border-blue-500 bg-white shadow-md transition-transform hover:scale-125 active:scale-125"
+                title="Drag to resize stamp (Top-Left)"
+              />
+
+              {/* Top-Right (NE) */}
+              <div
+                onPointerDown={(e) => handleResizePointerDown(e, "ne")}
+                onPointerMove={handleResizePointerMove}
+                onPointerUp={handleResizePointerUp}
+                onPointerCancel={handleResizePointerUp}
+                className="absolute -top-2.5 -right-2.5 z-40 size-3.5 cursor-nesw-resize rounded-[2px] border-2 border-blue-500 bg-white shadow-md transition-transform hover:scale-125 active:scale-125"
+                title="Drag to resize stamp (Top-Right)"
+              />
+
+              {/* Bottom-Left (SW) */}
+              <div
+                onPointerDown={(e) => handleResizePointerDown(e, "sw")}
+                onPointerMove={handleResizePointerMove}
+                onPointerUp={handleResizePointerUp}
+                onPointerCancel={handleResizePointerUp}
+                className="absolute -bottom-2.5 -left-2.5 z-40 size-3.5 cursor-nesw-resize rounded-[2px] border-2 border-blue-500 bg-white shadow-md transition-transform hover:scale-125 active:scale-125"
+                title="Drag to resize stamp (Bottom-Left)"
+              />
+
+              {/* Bottom-Right (SE) */}
+              <div
+                onPointerDown={(e) => handleResizePointerDown(e, "se")}
+                onPointerMove={handleResizePointerMove}
+                onPointerUp={handleResizePointerUp}
+                onPointerCancel={handleResizePointerUp}
+                className="absolute -right-2.5 -bottom-2.5 z-40 size-3.5 cursor-nwse-resize rounded-[2px] border-2 border-blue-500 bg-white shadow-md transition-transform hover:scale-125 active:scale-125"
+                title="Drag to resize stamp (Bottom-Right)"
+              />
+
+              {/* Size Pill */}
+              <div className="pointer-events-none absolute inset-x-0 -bottom-8 flex justify-center">
+                <span className="flex items-center gap-1.5 rounded-full bg-black/85 px-2.5 py-0.5 font-mono text-[10px] font-medium text-white shadow-lg backdrop-blur-xs">
+                  <span>
+                    {cutter.width} × {cutterHeight}px
+                  </span>
+                  <span className="text-zinc-500">·</span>
+                  <span className="text-zinc-300">Drag corners to resize</span>
+                </span>
+              </div>
+            </>
           )}
         </div>
       </div>

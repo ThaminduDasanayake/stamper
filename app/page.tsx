@@ -307,7 +307,11 @@ export default function Home() {
         <div className="flex items-center gap-2">
           {stampedToast && (
             <div className="animate-in fade-in hidden items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-3 py-1 text-xs font-medium text-emerald-300 shadow-sm md:flex">
-              <SealCheckIcon size={14} weight="fill" className="text-emerald-400" />
+              <SealCheckIcon
+                size={14}
+                weight="fill"
+                className="text-emerald-400"
+              />
               <span>Stamp added to Album!</span>
               <button
                 type="button"
