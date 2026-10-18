@@ -232,52 +232,6 @@ export function StudioSidebar({
           </div>
         </div>
 
-        {/* Label & Number (clean and minimal) */}
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-3.5">
-          <label className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase">
-            Stamp Label
-          </label>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <span className="text-[9px] font-medium text-zinc-500">
-                Title
-              </span>
-              <input
-                type="text"
-                value={config.country || ""}
-                onChange={(e) => onChangeConfig({ country: e.target.value })}
-                placeholder="Pixel Parks"
-                className="mt-0.5 w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-white outline-none focus:border-zinc-600"
-              />
-            </div>
-            <div>
-              <span className="text-[9px] font-medium text-zinc-500">
-                Number
-              </span>
-              <input
-                type="text"
-                value={config.denomination || ""}
-                onChange={(e) =>
-                  onChangeConfig({ denomination: e.target.value })
-                }
-                placeholder="24"
-                className="mt-0.5 w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-white outline-none focus:border-zinc-600"
-              />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-[9px] font-medium text-zinc-500">
-              Archive Tag
-            </span>
-            <input
-              type="text"
-              value={config.subtitle || ""}
-              onChange={(e) => onChangeConfig({ subtitle: e.target.value })}
-              placeholder="Field archive · 01"
-              className="mt-0.5 w-full rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-xs text-white outline-none focus:border-zinc-600"
-            />
-          </div>
-        </div>
       </div>
     </aside>
   );

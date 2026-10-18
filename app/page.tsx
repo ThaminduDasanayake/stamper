@@ -19,6 +19,7 @@ import {
   StampedItem,
 } from "@/components/stamped-collection";
 import { PrintSheetModal } from "@/components/print-sheet-modal";
+import { PostStampModal } from "@/components/post-stamp-modal";
 import { processImageFile } from "@/lib/image-utils";
 import { useStampedCollection } from "@/lib/collection-store";
 import {
@@ -32,9 +33,9 @@ import {
 
 const INITIAL_CONFIG: StampConfig = {
   imageUrl: `data:image/svg+xml;utf8,${encodeURIComponent(SAMPLE_STAMPS[0].svg)}`,
-  country: "Pixel Parks",
-  denomination: "24",
-  subtitle: "Field archive · 01",
+  country: "",
+  denomination: "",
+  subtitle: "",
   aspectRatio: "4/5",
   paperColor: "#ffffff",
   inkColor: "#181713",
@@ -61,6 +62,8 @@ export default function Home() {
   const [collection, saveCollection] = useStampedCollection();
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [stampedToast, setStampedToast] = useState(false);
+  const [activeEditingStamp, setActiveEditingStamp] = useState<StampedItem | null>(null);
+  const [isPostStampModalOpen, setIsPostStampModalOpen] = useState(false);
 
   // Sync with URL query parameter or hash on client mount
   useEffect(() => {
@@ -242,12 +245,21 @@ export default function Home() {
       setTimeout(() => {
         setIsStamping(false);
         saveCollection([newItem, ...collection]);
+        setActiveEditingStamp(newItem);
+        setIsPostStampModalOpen(true);
         setStampedToast(true);
         setTimeout(() => setStampedToast(false), 4500);
       }, 350);
     },
     [isStamping, config, cutter, collection, saveCollection]
   );
+
+  const handleSavePostStamp = (updatedItem: StampedItem) => {
+    saveCollection(
+      collection.map((c) => (c.id === updatedItem.id ? updatedItem : c))
+    );
+    setActiveEditingStamp(updatedItem);
+  };
 
   // Global clipboard paste listener
   useEffect(() => {
@@ -489,6 +501,10 @@ export default function Home() {
               onClearAll={handleClearAll}
               onOpenPrintSheet={() => setIsPrintModalOpen(true)}
               onGoToStudio={() => switchView("studio")}
+              onEditText={(item) => {
+                setActiveEditingStamp(item);
+                setIsPostStampModalOpen(true);
+              }}
             />
           </div>
         </div>
@@ -499,6 +515,14 @@ export default function Home() {
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         items={collection}
+      />
+
+      {/* Post-Stamp Text & Typography Customization Modal */}
+      <PostStampModal
+        isOpen={isPostStampModalOpen}
+        item={activeEditingStamp}
+        onClose={() => setIsPostStampModalOpen(false)}
+        onSave={handleSavePostStamp}
       />
     </div>
   );

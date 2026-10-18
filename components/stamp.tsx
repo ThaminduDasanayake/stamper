@@ -135,7 +135,16 @@ export function Stamp({
 
   return (
     <div
-      className={cn("relative aspect-[4/5] w-[min(100%,14rem)]", className)}
+      className={cn(
+        "relative",
+        !className?.includes("aspect-") &&
+          !className?.includes("size-full") &&
+          "aspect-[4/5]",
+        !className?.includes("w-") &&
+          !className?.includes("size-full") &&
+          "w-[min(100%,14rem)]",
+        className
+      )}
       style={rootStyle}
     >
       <article

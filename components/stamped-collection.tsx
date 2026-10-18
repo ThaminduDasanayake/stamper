@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { StampConfig } from "@/lib/stamp-renderer";
 import { downloadStampPng, copyStampToClipboard } from "@/lib/stamp-renderer";
 import {
@@ -14,6 +14,8 @@ import {
   PaintBrush,
   Archive,
   Funnel,
+  X,
+  TextT,
 } from "@phosphor-icons/react";
 
 export type StampedItem = {
@@ -30,6 +32,7 @@ export type StampedCollectionProps = {
   onClearAll: () => void;
   onOpenPrintSheet: () => void;
   onGoToStudio: () => void;
+  onEditText?: (item: StampedItem) => void;
 };
 
 export function StampedCollection({
@@ -39,13 +42,44 @@ export function StampedCollection({
   onClearAll,
   onOpenPrintSheet,
   onGoToStudio,
+  onEditText,
 }: StampedCollectionProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [viewingItem, setViewingItem] = useState<StampedItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [aspectFilter, setAspectFilter] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
+  // Close modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setViewingItem(null);
+      }
+    };
+    if (viewingItem) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [viewingItem]);
+
   const handleCopy = async (item: StampedItem) => {
+    if (item.previewDataUrl) {
+      try {
+        const res = await fetch(item.previewDataUrl);
+        const blob = await res.blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type || "image/png"]: blob }),
+        ]);
+        setCopiedId(item.id);
+        setTimeout(() => setCopiedId(null), 2000);
+        return;
+      } catch (err) {
+        console.warn("Direct blob clipboard copy failed, falling back:", err);
+      }
+    }
     const success = await copyStampToClipboard(item.config);
     if (success) {
       setCopiedId(item.id);
@@ -57,6 +91,13 @@ export function StampedCollection({
     const safeTitle = (item.config.country || "stamp")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "-");
+    if (item.previewDataUrl) {
+      const link = document.createElement("a");
+      link.download = `${safeTitle}-${item.timestamp}.png`;
+      link.href = item.previewDataUrl;
+      link.click();
+      return;
+    }
     downloadStampPng(item.config, `${safeTitle}-${item.timestamp}.png`);
   };
 
@@ -248,9 +289,9 @@ export function StampedCollection({
               {/* Preview image */}
               <button
                 type="button"
-                onClick={() => onSelect(item.config)}
+                onClick={() => setViewingItem(item)}
                 className="relative flex aspect-4/5 w-full cursor-pointer items-center justify-center p-1.5 transition-transform group-hover:scale-102"
-                title="Click to edit in Studio"
+                title="Click to inspect stamp"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -338,6 +379,116 @@ export function StampedCollection({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Large Stamp Lightbox Modal */}
+      {viewingItem && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-150"
+          onClick={() => setViewingItem(null)}
+        >
+          <div
+            className="relative flex max-h-[92vh] w-full max-w-lg flex-col items-center rounded-3xl border border-zinc-800 bg-zinc-900/95 p-6 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setViewingItem(null)}
+              className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+              title="Close (Esc)"
+              aria-label="Close"
+            >
+              <X size={16} weight="bold" />
+            </button>
+
+            {/* Stamp Display (Big) */}
+            <div className="flex max-h-[58vh] w-full items-center justify-center p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={viewingItem.previewDataUrl}
+                alt={viewingItem.config.country || "Stamp"}
+                className="max-h-[54vh] max-w-full object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.6)]"
+              />
+            </div>
+
+            {/* Stamp Details */}
+            <div className="mt-2 w-full border-t border-zinc-800 pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-mono text-base font-bold tracking-tight text-white uppercase">
+                    {viewingItem.config.country || "Stamp"}
+                  </h3>
+                  <p className="font-mono text-xs text-zinc-400">
+                    {viewingItem.config.subtitle || "Field archive · 01"}
+                  </p>
+                </div>
+                <span className="font-mono text-2xl font-black text-white">
+                  {viewingItem.config.denomination || "24"}
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-4 flex items-center gap-2">
+                {onEditText && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onEditText(viewingItem);
+                      setViewingItem(null);
+                    }}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-500/40 bg-blue-500/10 px-3 py-2.5 text-xs font-bold text-blue-300 transition-colors hover:bg-blue-500/20 hover:text-white active:scale-98"
+                  >
+                    <TextT size={14} weight="bold" />
+                    <span>Add / Edit Text</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelect(viewingItem.config);
+                    setViewingItem(null);
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-xs font-bold text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white active:scale-98"
+                  title="Reload into Canvas Studio"
+                >
+                  <ArrowUUpLeft size={14} weight="bold" />
+                  <span>Restamp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopy(viewingItem)}
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white active:scale-98"
+                >
+                  {copiedId === viewingItem.id ? (
+                    <>
+                      <Check size={14} className="text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopySimple size={14} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownload(viewingItem)}
+                  className="flex items-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-zinc-950 transition-colors hover:bg-zinc-200 active:scale-98"
+                >
+                  <DownloadSimple size={14} weight="bold" />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

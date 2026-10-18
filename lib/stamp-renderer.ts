@@ -1,11 +1,26 @@
 import { getStampPoints } from "@/components/stamp";
 
+export type StampTextItem = {
+  id: string;
+  text: string;
+  x: number; // percentage 0..100 inside inner stamp frame
+  y: number; // percentage 0..100 inside inner stamp frame
+  fontSize: number; // base size (e.g. 16, scales with canvas)
+  color: string; // hex or rgba
+  fontFamily?: "mono" | "sans" | "serif";
+  align?: "left" | "center" | "right";
+  corner?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "custom";
+};
+
 export type StampConfig = {
   // Image
   imageUrl: string;
-  country?: string; // e.g. "Pixel Parks"
-  denomination?: string; // e.g. "24"
-  subtitle?: string; // e.g. "Field archive · 01"
+  country?: string; // Optional legacy field
+  denomination?: string;
+  subtitle?: string;
+
+  // Custom post-stamp text layers
+  textItems?: StampTextItem[];
 
   // Frame defaults
   aspectRatio?: "4/5" | "1/1" | "5/4" | "3/4" | "auto";
@@ -36,10 +51,18 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export type CropOptions = {
-  cropX: number; // in image natural pixels
-  cropY: number;
-  cropWidth: number;
-  cropHeight: number;
+  // Normalized 0..1 crop coordinates (fraction of source image)
+  normX?: number;
+  normY?: number;
+  normWidth?: number;
+  normHeight?: number;
+  cutterWidth?: number;
+
+  // Pixel coordinates in image natural pixels
+  cropX?: number;
+  cropY?: number;
+  cropWidth?: number;
+  cropHeight?: number;
   rotation?: number;
 };
 
@@ -80,12 +103,72 @@ export function computeCropFromCutter(
   const relY = innerY - imageDisplayY;
 
   return {
+    normX: relX / imageDisplayWidth,
+    normY: relY / displayH,
+    normWidth: innerW / imageDisplayWidth,
+    normHeight: innerH / displayH,
+    cutterWidth: cutter.width,
     cropX: Math.round(relX * scaleX),
     cropY: Math.round(relY * scaleY),
     cropWidth: Math.round(innerW * scaleX),
     cropHeight: Math.round(innerH * scaleY),
     rotation: cutter.rotation,
   };
+}
+
+/**
+ * Helper to draw text with precise letter spacing (tracking) and alignment,
+ * using native ctx.letterSpacing when available or character stepping fallback.
+ */
+function drawTextWithTracking(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  trackingEm: number,
+  align: CanvasTextAlign = "left",
+  baseline: CanvasTextBaseline = "alphabetic"
+) {
+  ctx.save();
+  ctx.textAlign = align;
+  ctx.textBaseline = baseline;
+
+  if ("letterSpacing" in ctx) {
+    try {
+      (ctx as unknown as { letterSpacing: string }).letterSpacing = `${(fontSize * trackingEm).toFixed(2)}px`;
+      ctx.fillText(text, x, y);
+      ctx.restore();
+      return;
+    } catch {
+      // Fall through to manual loop if setting letterSpacing throws
+    }
+  }
+
+  // Fallback: manual character-by-character drawing
+  const trackingPx = fontSize * trackingEm;
+  let totalWidth = 0;
+  for (let i = 0; i < text.length; i++) {
+    totalWidth +=
+      ctx.measureText(text[i]).width + (i < text.length - 1 ? trackingPx : 0);
+  }
+
+  let startX = x;
+  if (align === "right") {
+    startX = x - totalWidth;
+  } else if (align === "center") {
+    startX = x - totalWidth / 2;
+  }
+
+  ctx.textAlign = "left";
+  let currentX = startX;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    ctx.fillText(char, currentX, y);
+    currentX += ctx.measureText(char).width + trackingPx;
+  }
+
+  ctx.restore();
 }
 
 /**
@@ -145,8 +228,9 @@ export async function renderStampToCanvas(
   ctx.fillRect(0, 0, width, height);
 
   // 3. Inner frame content
-  // Scale padding proportionally (default 13px at 198px width)
-  const padRatio = width / 198;
+  // Scale proportionally to the cutter on screen (referenceWidth = cutterWidth or 198)
+  const referenceWidth = cropOptions?.cutterWidth || 198;
+  const padRatio = width / referenceWidth;
   const paddingPx = Math.round((config.padding ?? 13) * padRatio);
 
   const innerX = paddingPx;
@@ -171,25 +255,50 @@ export async function renderStampToCanvas(
 
       if (cropOptions) {
         // Precise stencil cutout from canvas coordinate mapping
-        const {
-          cropX,
-          cropY,
-          cropWidth,
-          cropHeight,
-          rotation = 0,
-        } = cropOptions;
+        const { rotation = 0 } = cropOptions;
+        const sourceW = img.naturalWidth || img.width || 300;
+        const sourceH = img.naturalHeight || img.height || 375;
+
+        let sx: number;
+        let sy: number;
+        let sWidth: number;
+        let sHeight: number;
+
+        if (
+          cropOptions.normWidth !== undefined &&
+          cropOptions.normHeight !== undefined
+        ) {
+          sx = (cropOptions.normX ?? 0) * sourceW;
+          sy = (cropOptions.normY ?? 0) * sourceH;
+          sWidth = cropOptions.normWidth * sourceW;
+          sHeight = cropOptions.normHeight * sourceH;
+        } else {
+          sx = cropOptions.cropX ?? 0;
+          sy = cropOptions.cropY ?? 0;
+          sWidth = cropOptions.cropWidth ?? sourceW;
+          sHeight = cropOptions.cropHeight ?? sourceH;
+        }
+
+        // Clamp within source bounds
+        sx = Math.max(0, Math.min(sourceW - 1, sx));
+        sy = Math.max(0, Math.min(sourceH - 1, sy));
+        sWidth = Math.max(1, Math.min(sourceW - sx, sWidth));
+        sHeight = Math.max(1, Math.min(sourceH - sy, sHeight));
+
         const centerX = innerX + innerW / 2;
         const centerY = innerY + innerH / 2;
 
         ctx.translate(centerX, centerY);
-        ctx.rotate((rotation * Math.PI) / 180);
+        if (rotation) {
+          ctx.rotate((rotation * Math.PI) / 180);
+        }
 
         ctx.drawImage(
           img,
-          cropX,
-          cropY,
-          cropWidth,
-          cropHeight,
+          sx,
+          sy,
+          sWidth,
+          sHeight,
           -innerW / 2,
           -innerH / 2,
           innerW,
@@ -214,51 +323,120 @@ export async function renderStampToCanvas(
   ctx.strokeRect(innerX, innerY, innerW, innerH);
   ctx.restore();
 
-  // 6. Typography
-  ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.52)";
-  ctx.shadowBlur = 1 * padRatio;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 1 * padRatio;
+  // 6. Typography (Custom text items or legacy labels if explicitly set)
+  const monoFont =
+    '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+  const sansFont =
+    '"Geist Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const serifFont =
+    '"Geist Serif", "Times New Roman", Times, Georgia, serif';
 
-  const countryText = (config.country || "Pixel Parks").trim();
-  if (countryText) {
-    const fontSize = Math.round(10 * padRatio);
-    ctx.font = `bold ${fontSize}px monospace, ui-monospace, sans-serif`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(
-      countryText.toUpperCase(),
-      innerX + 10 * padRatio,
-      innerY + 10 * padRatio
-    );
+  // A. Render custom text layers added by user after stamping
+  if (config.textItems && config.textItems.length > 0) {
+    for (const item of config.textItems) {
+      if (!item.text.trim()) continue;
+
+      ctx.save();
+      ctx.fillStyle = item.color || "#ffffff";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.52)";
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = Math.max(1, Math.round(1 * padRatio));
+      ctx.shadowBlur = Math.max(1, Math.round(1 * padRatio));
+
+      const textScaleRatio = width / 340;
+      const scaledFontSize = Math.max(8, Math.round(item.fontSize * textScaleRatio));
+      const chosenFont =
+        item.fontFamily === "serif"
+          ? serifFont
+          : item.fontFamily === "sans"
+            ? sansFont
+            : monoFont;
+
+      ctx.font = `bold ${scaledFontSize}px ${chosenFont}`;
+
+      const textX = innerX + (item.x / 100) * innerW;
+      const textY = innerY + (item.y / 100) * innerH;
+
+      const align: CanvasTextAlign =
+        item.align ||
+        (item.x > 65 ? "right" : item.x > 35 ? "center" : "left");
+      const baseline: CanvasTextBaseline =
+        item.y > 65 ? "bottom" : item.y > 35 ? "middle" : "top";
+
+      drawTextWithTracking(
+        ctx,
+        item.text,
+        textX,
+        textY,
+        scaledFontSize,
+        item.fontFamily === "mono" ? 0.08 : 0.02,
+        align,
+        baseline
+      );
+      ctx.restore();
+    }
   }
 
-  const denomText = (config.denomination || "24").trim();
-  if (denomText) {
-    const fontSize = Math.round(22 * padRatio);
-    ctx.font = `bold ${fontSize}px monospace, ui-monospace, sans-serif`;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "top";
-    ctx.fillText(
-      denomText,
-      innerX + innerW - 10 * padRatio,
-      innerY + 10 * padRatio
-    );
-  }
+  // B. Optional legacy labels (ONLY rendered if explicitly provided and non-empty)
+  const countryText = (config.country || "").trim();
+  const denomText = (config.denomination || "").trim();
+  const subtitleText = (config.subtitle || "").trim();
 
-  const subtitleText = (config.subtitle || "Field archive · 01").trim();
-  if (subtitleText) {
-    const fontSize = Math.round(9 * padRatio);
-    ctx.font = `bold ${fontSize}px monospace, ui-monospace, sans-serif`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(
-      subtitleText.toUpperCase(),
-      innerX + 10 * padRatio,
-      innerY + innerH - 10 * padRatio
-    );
+  if (countryText || denomText || subtitleText) {
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.52)";
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = Math.max(1, Math.round(1 * padRatio));
+    ctx.shadowBlur = Math.max(1, Math.round(1 * padRatio));
+
+    const insetPx = Math.round(10 * padRatio);
+
+    if (countryText) {
+      const fontSize = Math.max(6, Math.round(8 * padRatio));
+      ctx.font = `bold ${fontSize}px ${monoFont}`;
+      drawTextWithTracking(
+        ctx,
+        countryText.toUpperCase(),
+        innerX + insetPx,
+        innerY + insetPx,
+        fontSize,
+        0.12,
+        "left",
+        "top"
+      );
+    }
+
+    if (denomText) {
+      const fontSize = Math.max(12, Math.round(17 * padRatio));
+      ctx.font = `bold ${fontSize}px ${monoFont}`;
+      drawTextWithTracking(
+        ctx,
+        denomText,
+        innerX + innerW - insetPx,
+        innerY + insetPx,
+        fontSize,
+        -0.08,
+        "right",
+        "top"
+      );
+    }
+
+    if (subtitleText) {
+      const fontSize = Math.max(5, Math.round(7 * padRatio));
+      ctx.font = `bold ${fontSize}px ${monoFont}`;
+      drawTextWithTracking(
+        ctx,
+        subtitleText.toUpperCase(),
+        innerX + insetPx,
+        innerY + innerH - insetPx,
+        fontSize,
+        0.1,
+        "left",
+        "bottom"
+      );
+    }
+    ctx.restore();
   }
   ctx.restore();
 

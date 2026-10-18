@@ -18,7 +18,7 @@ export const SAMPLE_STAMPS: SampleStamp[] = [
     suggestedDenomination: "50c",
     suggestedPaper: "#fcf8f0",
     suggestedInk: "#8a2832",
-    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="300" height="375">
       <rect width="300" height="375" fill="#f4ebd9"/>
       <rect x="12" y="12" width="276" height="351" fill="none" stroke="#8a2832" stroke-width="2" stroke-dasharray="4 2"/>
       <rect x="16" y="16" width="268" height="343" fill="none" stroke="#8a2832" stroke-width="1"/>
@@ -47,7 +47,7 @@ export const SAMPLE_STAMPS: SampleStamp[] = [
     suggestedDenomination: "25¢",
     suggestedPaper: "#f2f5f9",
     suggestedInk: "#1e3a5f",
-    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="300" height="375">
       <rect width="300" height="375" fill="#e8eff7"/>
       <rect x="12" y="12" width="276" height="351" fill="none" stroke="#1e3a5f" stroke-width="2"/>
       <rect x="16" y="16" width="268" height="343" fill="none" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="3 3"/>
@@ -75,7 +75,7 @@ export const SAMPLE_STAMPS: SampleStamp[] = [
     suggestedDenomination: "$1.00",
     suggestedPaper: "#1e1e24",
     suggestedInk: "#e5b869",
-    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="300" height="375">
       <rect width="300" height="375" fill="#15151c"/>
       <rect x="12" y="12" width="276" height="351" fill="none" stroke="#e5b869" stroke-width="2"/>
       <rect x="16" y="16" width="268" height="343" fill="none" stroke="#e5b869" stroke-width="1" stroke-opacity="0.5"/>
@@ -113,7 +113,7 @@ export const SAMPLE_STAMPS: SampleStamp[] = [
     suggestedDenomination: "L. 200",
     suggestedPaper: "#faf6ed",
     suggestedInk: "#3f362c",
-    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="300" height="375">
       <rect width="300" height="375" fill="#f4ebd9"/>
       <rect x="12" y="12" width="276" height="351" fill="none" stroke="#3f362c" stroke-width="2"/>
       <rect x="16" y="16" width="268" height="343" fill="none" stroke="#3f362c" stroke-width="0.8"/>
@@ -145,7 +145,7 @@ export const SAMPLE_STAMPS: SampleStamp[] = [
     suggestedDenomination: "¥80",
     suggestedPaper: "#f5f6ee",
     suggestedInk: "#1a4038",
-    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    svg: `<svg viewBox="0 0 300 375" xmlns="http://www.w3.org/2000/svg" width="300" height="375">
       <rect width="300" height="375" fill="#e7eee8"/>
       <rect x="12" y="12" width="276" height="351" fill="none" stroke="#1a4038" stroke-width="2"/>
       <rect x="16" y="16" width="268" height="343" fill="none" stroke="#1a4038" stroke-width="1" stroke-dasharray="4 2"/>

@@ -120,8 +120,14 @@ export function CanvasWorkspace({
   const imageDisplayX = 40;
   const imageDisplayY = 40;
 
-  // Aspect ratio height calculation for stamp cutter (standard 4/5)
-  const aspectMultiplier = 5 / 4;
+  // Aspect ratio height calculation for stamp cutter
+  let aspectMultiplier = 5 / 4;
+  if (config.aspectRatio === "1/1") aspectMultiplier = 1;
+  else if (config.aspectRatio === "5/4") aspectMultiplier = 4 / 5;
+  else if (config.aspectRatio === "3/4") aspectMultiplier = 4 / 3;
+  else if (config.aspectRatio === "auto") {
+    aspectMultiplier = config.customAspectRatio || 5 / 4;
+  }
   const cutterHeight = Math.round(cutter.width * aspectMultiplier);
 
   // Zoom helpers
@@ -292,14 +298,16 @@ export function CanvasWorkspace({
     const naturalW = imgEl.naturalWidth || imageDisplayWidth;
     const naturalH =
       imgEl.naturalHeight || imageDisplayWidth * aspectMultiplier;
-    const displayH = (naturalH / naturalW) * imageDisplayWidth;
+    const displayH =
+      imgEl.clientHeight ||
+      Math.round((naturalH / naturalW) * imageDisplayWidth);
 
     // Standard 13px padding from Stamp component
     const padding = 13;
     const innerX = cutter.x + padding;
     const innerY = cutter.y + padding;
-    const innerW = cutter.width - padding * 2;
-    const innerH = cutterHeight - padding * 2;
+    const innerW = Math.max(10, cutter.width - padding * 2);
+    const innerH = Math.max(10, cutterHeight - padding * 2);
 
     const scaleX = naturalW / imageDisplayWidth;
     const scaleY = naturalH / displayH;
@@ -308,11 +316,16 @@ export function CanvasWorkspace({
     const relY = innerY - imageDisplayY;
 
     const crop: CropOptions = {
+      normX: relX / imageDisplayWidth,
+      normY: relY / displayH,
+      normWidth: innerW / imageDisplayWidth,
+      normHeight: innerH / displayH,
       cropX: Math.round(relX * scaleX),
       cropY: Math.round(relY * scaleY),
       cropWidth: Math.round(innerW * scaleX),
       cropHeight: Math.round(innerH * scaleY),
       rotation: cutter.rotation,
+      cutterWidth: cutter.width,
     };
 
     onStampOut(crop);
@@ -631,7 +644,7 @@ export function CanvasWorkspace({
           onPointerMove={handleCutterPointerMove}
           onPointerUp={handleCutterPointerUp}
           onPointerCancel={handleCutterPointerUp}
-          className={`stamp-cutter-handle absolute transition-transform select-none ${
+          className={`stamp-cutter-handle absolute select-none ${
             isDraggingCutter
               ? "z-30 cursor-grabbing"
               : resizingCorner
@@ -639,8 +652,8 @@ export function CanvasWorkspace({
                 : "z-20 cursor-grab"
           } ${
             isStamping
-              ? "translate-y-3 scale-90 brightness-90"
-              : "scale-100 hover:scale-[1.01]"
+              ? "translate-y-3 scale-90 brightness-90 transition-transform"
+              : ""
           }`}
           style={{
             left: `${cutter.x}px`,
@@ -689,18 +702,7 @@ export function CanvasWorkspace({
                 draggable={false}
               />
 
-              {/* Clean Typography Overlay matching user showcase */}
-              <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-3 text-white drop-shadow-[0_1px_1px_rgb(0_0_0_/_52%)]">
-                <span className="font-mono text-[8px] font-bold tracking-[0.12em] uppercase leading-none">
-                  {config.country || "Pixel Parks"}
-                </span>
-                <strong className="font-mono text-[17px] font-bold tracking-[-0.08em] leading-[0.8]">
-                  {config.denomination || "24"}
-                </strong>
-              </div>
-              <span className="pointer-events-none absolute bottom-2.5 left-2.5 font-mono text-[7px] font-bold tracking-[0.1em] text-white uppercase leading-none drop-shadow-[0_1px_1px_rgb(0_0_0_/_52%)]">
-                {config.subtitle || "Field archive · 01"}
-              </span>
+
 
               {/* Subtle 1px inset stamp border */}
               <span
