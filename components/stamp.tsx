@@ -39,7 +39,7 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-function createStampClipPath({
+export function getStampPoints({
   depth,
   horizontalCount,
   verticalCount,
@@ -47,7 +47,7 @@ function createStampClipPath({
   depth: number;
   horizontalCount: number;
   verticalCount: number;
-}) {
+}): Array<[number, number]> {
   const resolvedDepth = clamp(depth, 0, 10);
   const resolvedHorizontalCount = clamp(Math.round(horizontalCount), 4, 32);
   const resolvedVerticalCount = clamp(Math.round(verticalCount), 4, 40);
@@ -87,6 +87,19 @@ function createStampClipPath({
     points.push([0, start - verticalStep]);
   }
 
+  return points;
+}
+
+export function createStampClipPath({
+  depth,
+  horizontalCount,
+  verticalCount,
+}: {
+  depth: number;
+  horizontalCount: number;
+  verticalCount: number;
+}): string {
+  const points = getStampPoints({ depth, horizontalCount, verticalCount });
   return `polygon(${points
     .map(([x, y]) => `${x.toFixed(3)}% ${y.toFixed(3)}%`)
     .join(", ")})`;
