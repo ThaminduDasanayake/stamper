@@ -166,7 +166,7 @@ export function StampedCollection({
                 verticalPerforations={item.config.verticalPerforations || 15}
                 perforationDepth={item.config.perforationDepth || 2.4}
                 paper={item.config.paperColor || "#ffffff"}
-                className="z-[1] w-[150px] sm:w-[170px] -rotate-1 transform-gpu transition-transform duration-200 ease-out hover:rotate-0 hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:-rotate-1 motion-reduce:hover:scale-100"
+                className="z-[1] w-[150px] sm:w-[170px] aspect-[4/5] -rotate-1 transform-gpu transition-transform duration-200 ease-out hover:rotate-0 hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:-rotate-1 motion-reduce:hover:scale-100"
                 contentClassName="rounded-xs overflow-hidden"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -176,23 +176,46 @@ export function StampedCollection({
                   className="size-full object-cover select-none"
                   draggable={false}
                 />
-                {item.config.country && (
-                  <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-3 text-white drop-shadow-[0_1px_1px_rgb(0_0_0_/_52%)]">
-                    <span className="font-mono font-bold text-[8px] uppercase leading-none tracking-[0.12em]">
-                      {item.config.country}
-                    </span>
-                    {item.config.denomination && (
-                      <strong className="font-mono font-bold text-[17px] leading-[0.8] tracking-[-0.08em]">
-                        {item.config.denomination}
-                      </strong>
-                    )}
+
+                {/* Render custom text items if added by user via Add Text */}
+                {item.config.textItems && item.config.textItems.length > 0 && (
+                  <div className="pointer-events-none absolute inset-[8.5%] overflow-hidden">
+                    {item.config.textItems.map((t) => {
+                      const fontClass =
+                        t.fontFamily === "serif"
+                          ? "font-serif"
+                          : t.fontFamily === "sans"
+                            ? "font-sans"
+                            : "font-mono";
+                      const displayFontSize = Math.max(
+                        6,
+                        Math.round(t.fontSize * (150 / 380))
+                      );
+                      return (
+                        <span
+                          key={t.id}
+                          style={{
+                            left: `${t.x}%`,
+                            top: `${t.y}%`,
+                            transform: `translate(${
+                              t.align === "right"
+                                ? "-100%"
+                                : t.align === "center"
+                                  ? "-50%"
+                                  : "0%"
+                            }, ${t.y > 65 ? "-100%" : t.y > 35 ? "-50%" : "0%"})`,
+                            color: t.color,
+                            fontSize: `${displayFontSize}px`,
+                          }}
+                          className={`absolute font-bold leading-none select-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)] ${fontClass}`}
+                        >
+                          {t.text}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
-                {item.config.subtitle && (
-                  <span className="pointer-events-none absolute bottom-2.5 left-2.5 font-mono font-bold text-[7px] text-white uppercase leading-none tracking-[0.1em] drop-shadow-[0_1px_1px_rgb(0_0_0_/_52%)]">
-                    {item.config.subtitle}
-                  </span>
-                )}
+
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_rgb(24_23_19_/_18%)]"

@@ -57,14 +57,26 @@ export function StudioSidebar({
 
     try {
       const optimizedUrl = await processImageFile(file);
-      onChangeConfig({ imageUrl: optimizedUrl });
+      onChangeConfig({
+        imageUrl: optimizedUrl,
+        country: "",
+        denomination: "",
+        subtitle: "",
+        textItems: [],
+      });
       onResetCutter();
     } catch {
       const reader = new FileReader();
       reader.onload = (event) => {
         const url = event.target?.result as string;
         if (url) {
-          onChangeConfig({ imageUrl: url });
+          onChangeConfig({
+            imageUrl: url,
+            country: "",
+            denomination: "",
+            subtitle: "",
+            textItems: [],
+          });
           onResetCutter();
         }
       };
@@ -79,9 +91,10 @@ export function StudioSidebar({
     const svgDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(sample.svg)}`;
     onChangeConfig({
       imageUrl: svgDataUri,
-      country: sample.name.split(" ")[0] || "Pixel Parks",
-      denomination: sample.suggestedDenomination || "24",
-      subtitle: "Field archive · 01",
+      country: "",
+      denomination: "",
+      subtitle: "",
+      textItems: [],
     });
     onResetCutter();
   };
