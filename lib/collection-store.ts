@@ -97,22 +97,7 @@ export const collectionStore = {
   },
 
   getSnapshot(): StampedItem[] {
-    if (typeof window === "undefined") return memoryCollection;
-    try {
-      const raw = localStorage.getItem("stamper_collection");
-      if (raw === cachedRaw) return memoryCollection;
-      cachedRaw = raw;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          memoryCollection = parsed;
-          return memoryCollection;
-        }
-      }
-      return memoryCollection;
-    } catch {
-      return memoryCollection;
-    }
+    return memoryCollection;
   },
 
   getServerSnapshot(): StampedItem[] {
@@ -123,29 +108,13 @@ export const collectionStore = {
     memoryCollection = items;
     saveToIndexedDb(items);
 
-    try {
-      cachedRaw = JSON.stringify(items.slice(0, 30));
-      localStorage.setItem("stamper_collection", cachedRaw);
-    } catch {
-      // If full items exceed 5MB localStorage limit, trim massive raw source data URLs
+    // Clean up any old bloated localStorage payload to prevent browser quota errors
+    if (typeof window !== "undefined") {
       try {
-        const safeItems = items.slice(0, 20).map((it) => ({
-          ...it,
-          config: {
-            ...it.config,
-            imageUrl:
-              it.config.imageUrl?.startsWith("data:") &&
-              it.config.imageUrl.length > 300000
-                ? it.previewDataUrl
-                : it.config.imageUrl,
-          },
-        }));
-        cachedRaw = JSON.stringify(safeItems);
-        localStorage.setItem("stamper_collection", cachedRaw);
-      } catch (err2) {
-        console.warn("LocalStorage full, persistent in IndexedDB only:", err2);
-      }
+        localStorage.removeItem("stamper_collection");
+      } catch {}
     }
+
     notify();
   },
 };

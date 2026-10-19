@@ -7,6 +7,7 @@ import {
   loadImage,
   computeCropFromCutter,
   createCroppedImage,
+  getStampPadding,
 } from "@/lib/stamp-renderer";
 import { SAMPLE_STAMPS } from "@/lib/sample-stamps";
 import { playStampSound } from "@/lib/sound";
@@ -123,73 +124,76 @@ export default function Home() {
         const imageDisplayY = 40;
         const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
 
-        const padding = config.padding || 13;
-        const targetOuterW = imageDisplayWidth + padding * 2;
-        const targetOuterH = displayH + padding * 2;
-        const customRatio = targetOuterH / targetOuterW;
-
-        const autoVPerfs = Math.max(
-          6,
-          Math.min(
-            36,
-            Math.round((config.horizontalPerforations || 12) * customRatio)
-          )
+        // Standard fixed 4:5 postage stamp ratio (12 x 15 perforations)
+        const mult = 5 / 4;
+        const maxFitW = Math.min(
+          imageDisplayWidth,
+          Math.floor(displayH / mult)
         );
+        const maxFitH = Math.round(maxFitW * mult);
 
         if (mode === "full") {
+          // Fit largest 4:5 stamp centered within the image
+          const centerX = Math.round(
+            imageDisplayX + (imageDisplayWidth - maxFitW) / 2
+          );
+          const centerY = Math.round(
+            imageDisplayY + (displayH - maxFitH) / 2
+          );
           setCutter({
-            x: imageDisplayX - padding,
-            y: imageDisplayY - padding,
-            width: targetOuterW,
+            x: centerX,
+            y: centerY,
+            width: maxFitW,
             rotation: 0,
           });
           setConfig((prev) => ({
             ...prev,
-            aspectRatio: "auto",
-            customAspectRatio: customRatio,
-            verticalPerforations: autoVPerfs,
+            aspectRatio: "4/5",
+            horizontalPerforations: 12,
+            verticalPerforations: 15,
           }));
-        } else if (mode === "corner" || mode === "top-left") {
-          setCutter((prev) => ({
-            ...prev,
-            x: imageDisplayX - padding,
-            y: imageDisplayY - padding,
-            rotation: 0,
-          }));
-        } else if (mode === "top-right") {
-          setCutter((prev) => ({
-            ...prev,
-            x: Math.round(
-              imageDisplayX + imageDisplayWidth - prev.width + padding
-            ),
-            y: imageDisplayY - padding,
-            rotation: 0,
-          }));
-        } else if (mode === "bottom-left") {
+        } else if (
+          mode === "corner" ||
+          mode === "top-left" ||
+          mode === "top-right" ||
+          mode === "bottom-left" ||
+          mode === "bottom-right"
+        ) {
           setCutter((prev) => {
-            const cutterH = Math.round(prev.width * (5 / 4));
+            let targetW = prev.width;
+            if (targetW >= maxFitW * 0.95) {
+              targetW = Math.min(maxFitW, Math.round(imageDisplayWidth * 0.5));
+            } else {
+              targetW = Math.min(targetW, maxFitW);
+            }
+            targetW = Math.max(80, targetW);
+            const targetH = Math.round(targetW * mult);
+
+            let newX = imageDisplayX;
+            let newY = imageDisplayY;
+
+            if (mode === "top-right") {
+              newX = imageDisplayX + imageDisplayWidth - targetW;
+              newY = imageDisplayY;
+            } else if (mode === "bottom-left") {
+              newX = imageDisplayX;
+              newY = imageDisplayY + displayH - targetH;
+            } else if (mode === "bottom-right") {
+              newX = imageDisplayX + imageDisplayWidth - targetW;
+              newY = imageDisplayY + displayH - targetH;
+            }
+
             return {
               ...prev,
-              x: imageDisplayX - padding,
-              y: Math.round(imageDisplayY + displayH - cutterH + padding),
-              rotation: 0,
-            };
-          });
-        } else if (mode === "bottom-right") {
-          setCutter((prev) => {
-            const cutterH = Math.round(prev.width * (5 / 4));
-            return {
-              ...prev,
-              x: Math.round(
-                imageDisplayX + imageDisplayWidth - prev.width + padding
-              ),
-              y: Math.round(imageDisplayY + displayH - cutterH + padding),
+              x: Math.round(newX),
+              y: Math.round(newY),
+              width: Math.round(targetW),
               rotation: 0,
             };
           });
         } else {
-          const halfW = Math.round(targetOuterW * 0.55);
-          const halfH = Math.round(halfW * customRatio);
+          const halfW = Math.round(maxFitW * 0.6);
+          const halfH = Math.round(halfW * mult);
           setCutter({
             x: Math.round(imageDisplayX + (imageDisplayWidth - halfW) / 2),
             y: Math.round(imageDisplayY + (displayH - halfH) / 2),
@@ -200,7 +204,7 @@ export default function Home() {
       };
       img.src = config.imageUrl;
     },
-    [config.imageUrl, config.padding, config.horizontalPerforations]
+    [config.imageUrl]
   );
 
   // Stamping execution: takes precise stencil crop from canvas
@@ -512,28 +516,8 @@ export default function Home() {
         </div>
       ) : (
         /* Full Album View */
-        <div className="flex-1 overflow-y-auto bg-zinc-950 p-6 md:p-8">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-white">
-                  Philatelic Stamp Album
-                </h1>
-                <p className="text-xs text-zinc-400">
-                  {collection.length}{" "}
-                  {collection.length === 1 ? "stamp" : "stamps"} collected
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => switchView("studio")}
-                className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-zinc-950 transition-transform hover:bg-zinc-200 active:scale-95"
-              >
-                <span>Back to Canvas Studio</span>
-                <ArrowRightIcon size={13} weight="bold" />
-              </button>
-            </div>
-
+        <div className="flex-1 overflow-y-auto bg-zinc-950 p-6 md:p-10">
+          <div className="mx-auto max-w-7xl">
             <StampedCollection
               items={collection}
               onSelect={handleSelectFromCollection}

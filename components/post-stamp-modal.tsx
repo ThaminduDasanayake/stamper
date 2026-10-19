@@ -378,7 +378,7 @@ export function PostStampModal({
 
             {/* Single Interactive Text Layer Overlay (Directly over stamp photo) */}
             <div
-              className="absolute inset-[6.5%] touch-none overflow-hidden"
+              className="absolute inset-[8.5%] touch-none overflow-hidden"
               onPointerMove={handlePointerMoveText}
               onPointerUp={handlePointerUpText}
               onPointerCancel={handlePointerUpText}

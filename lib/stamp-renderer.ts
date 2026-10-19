@@ -72,6 +72,16 @@ export type CropOptions = {
   rotation?: number;
 };
 
+export const DEFAULT_STAMP_PADDING_RATIO = 0.085;
+
+/**
+ * Computes standard philatelic white margin padding (~8.5% of stamp width)
+ */
+export function getStampPadding(stampWidth: number, customRatio?: number): number {
+  const ratio = customRatio ?? DEFAULT_STAMP_PADDING_RATIO;
+  return Math.round(stampWidth * ratio);
+}
+
 export function computeCropFromCutter(
   cutter: { x: number; y: number; width: number; rotation: number },
   config: StampConfig,
@@ -96,30 +106,24 @@ export function computeCropFromCutter(
   const naturalH = naturalHeight || imageDisplayWidth * aspectMultiplier;
   const displayH = (naturalH / naturalW) * imageDisplayWidth;
 
-  const padding = config.padding ?? 13;
-  const innerX = cutter.x + padding;
-  const innerY = cutter.y + padding;
-  const innerW = Math.max(10, cutter.width - padding * 2);
-  const innerH = Math.max(10, cutterHeight - padding * 2);
-
   const scaleX = naturalW / imageDisplayWidth;
   const scaleY = naturalH / displayH;
 
-  const relX = innerX - imageDisplayX;
-  const relY = innerY - imageDisplayY;
+  const relX = cutter.x - imageDisplayX;
+  const relY = cutter.y - imageDisplayY;
 
   return {
     normX: relX / imageDisplayWidth,
     normY: relY / displayH,
-    normWidth: innerW / imageDisplayWidth,
-    normHeight: innerH / displayH,
+    normWidth: cutter.width / imageDisplayWidth,
+    normHeight: cutterHeight / displayH,
     cutterWidth: cutter.width,
     cutterX: cutter.x,
     cutterY: cutter.y,
     cropX: Math.round(relX * scaleX),
     cropY: Math.round(relY * scaleY),
-    cropWidth: Math.round(innerW * scaleX),
-    cropHeight: Math.round(innerH * scaleY),
+    cropWidth: Math.round(cutter.width * scaleX),
+    cropHeight: Math.round(cutterHeight * scaleY),
     rotation: cutter.rotation,
   };
 }
@@ -309,16 +313,16 @@ export async function renderStampToCanvas(
   ctx.fillRect(0, 0, width, height);
 
   // 3. Inner frame content
-  // Scale proportionally to the cutter on screen (referenceWidth = cutterWidth or 198)
-  const activeCrop = cropOptions || config.crop;
-  const referenceWidth = activeCrop?.cutterWidth || config.cutterWidth || 198;
-  const padRatio = width / referenceWidth;
-  const paddingPx = Math.round((config.padding ?? 13) * padRatio);
+  // Standard philatelic white margin padding (~8.5% of stamp width)
+  const paddingPx = getStampPadding(width);
+  const padRatio = width / 340;
 
   const innerX = paddingPx;
   const innerY = paddingPx;
   const innerW = width - paddingPx * 2;
   const innerH = height - paddingPx * 2;
+
+  const activeCrop = cropOptions || config.crop;
 
   // 4. Draw user image inside inner frame
   if (config.imageUrl) {

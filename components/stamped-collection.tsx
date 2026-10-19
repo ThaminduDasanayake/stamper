@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { Stamp } from "@/components/stamp";
 import type { StampConfig, CropOptions } from "@/lib/stamp-renderer";
 import { downloadStampPng, copyStampToClipboard } from "@/lib/stamp-renderer";
 import {
@@ -9,11 +10,8 @@ import {
   Trash,
   Check,
   ArrowUUpLeft,
-  Printer,
-  MagnifyingGlass,
   PaintBrush,
   Archive,
-  Funnel,
   X,
   TextT,
 } from "@phosphor-icons/react";
@@ -42,15 +40,11 @@ export function StampedCollection({
   onSelect,
   onDelete,
   onClearAll,
-  onOpenPrintSheet,
   onGoToStudio,
   onEditText,
 }: StampedCollectionProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewingItem, setViewingItem] = useState<StampedItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [aspectFilter, setAspectFilter] = useState<string>("all");
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   // Close modal on Escape
   useEffect(() => {
@@ -103,64 +97,25 @@ export function StampedCollection({
     downloadStampPng(item.config, `${safeTitle}-${item.timestamp}.png`);
   };
 
-  // Filter and sort items
-  const filteredItems = useMemo(() => {
-    return items
-      .filter((item) => {
-        // Search filter
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
-          const matchesCountry = (item.config.country || "")
-            .toLowerCase()
-            .includes(q);
-          const matchesDenom = (item.config.denomination || "")
-            .toLowerCase()
-            .includes(q);
-          const matchesSub = (item.config.subtitle || "")
-            .toLowerCase()
-            .includes(q);
-          if (!matchesCountry && !matchesDenom && !matchesSub) {
-            return false;
-          }
-        }
-
-        // Aspect filter
-        if (
-          aspectFilter !== "all" &&
-          item.config.aspectRatio !== aspectFilter
-        ) {
-          return false;
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        return sortOrder === "newest"
-          ? b.timestamp - a.timestamp
-          : a.timestamp - b.timestamp;
-      });
-  }, [items, searchQuery, aspectFilter, sortOrder]);
-
   if (items.length === 0) {
     return (
-      <div className="flex min-h-[480px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-white/50 p-12 text-center backdrop-blur-xs dark:border-zinc-800 dark:bg-zinc-900/50">
-        <div className="flex size-16 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">
-          <Archive size={32} weight="light" />
+      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center backdrop-blur-xs">
+        <div className="flex size-16 items-center justify-center rounded-2xl bg-zinc-800/80 text-zinc-500">
+          <Archive size={30} weight="light" />
         </div>
-        <h3 className="mt-4 text-base font-bold text-zinc-800 dark:text-zinc-200">
-          Your Stamp Album is Empty
+        <h3 className="mt-4 text-base font-bold text-zinc-200">
+          Your Stamp Gallery is Empty
         </h3>
-        <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-          Create and stamp your first perforated postage stamp in the Studio.
-          Once stamped, it will be safely archived here in your collection.
+        <p className="mt-1 max-w-sm text-xs leading-relaxed text-zinc-400">
+          Stamp out your first postage creation in the Canvas Studio. It will appear right here in your gallery.
         </p>
         <button
           type="button"
           onClick={onGoToStudio}
-          className="mt-6 flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:bg-zinc-800 hover:shadow-lg dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="mt-6 flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-zinc-950 shadow-md transition-all hover:bg-zinc-200 active:scale-95"
         >
-          <PaintBrush size={16} weight="bold" />
-          Open Studio to Make a Stamp
+          <PaintBrush size={15} weight="bold" />
+          <span>Open Canvas Studio</span>
         </button>
       </div>
     );
@@ -168,239 +123,177 @@ export function StampedCollection({
 
   return (
     <div className="space-y-6">
-      {/* Album Header Bar */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white/70 p-5 shadow-xs backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800/80 dark:bg-zinc-900/70">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-100">
-              Stamp Collection Album
-            </h2>
-            <span className="rounded-full bg-zinc-900 px-2.5 py-0.5 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-              {items.length} {items.length === 1 ? "stamp" : "stamps"}
-            </span>
-          </div>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Browse, inspect, and export your archived postage creations
-          </p>
-        </div>
-
-        {/* Global Album Actions */}
+      {/* Subtle Gallery Bar */}
+      <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onGoToStudio}
-            className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            <PaintBrush size={15} weight="bold" />
-            New Stamp
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenPrintSheet}
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-800 shadow-xs transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-          >
-            <Printer size={15} />
-            Print Sheet
-          </button>
-
-          {items.length > 1 && (
-            <button
-              type="button"
-              onClick={onClearAll}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-rose-400 dark:hover:bg-rose-950/20"
-              title="Clear all stamps"
-            >
-              Clear All
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 rounded-xl bg-zinc-100/70 p-2 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/50">
-        {/* Search */}
-        <div className="relative flex-1">
-          <MagnifyingGlass
-            size={16}
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-400"
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by country, denomination, city..."
-            className="w-full rounded-lg border-0 bg-white py-1.5 pr-3 pl-9 text-xs text-zinc-900 placeholder:text-zinc-400 focus:ring-2 focus:ring-zinc-900/20 focus:outline-hidden dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-100/20"
-          />
-        </div>
-
-        {/* Aspect Filter Buttons */}
-        <div className="flex items-center gap-1 overflow-x-auto">
-          <span className="flex items-center gap-1 pl-2 text-[11px] font-semibold text-zinc-400">
-            <Funnel size={12} />
-            Ratio:
+          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+            Gallery
           </span>
-          {[
-            { id: "all", label: "All" },
-            { id: "4/5", label: "4:5" },
-            { id: "1/1", label: "1:1" },
-            { id: "5/4", label: "5:4" },
-            { id: "3/4", label: "3:4" },
-            { id: "auto", label: "Auto" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setAspectFilter(f.id)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-all ${
-                aspectFilter === f.id
-                  ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-700 dark:text-zinc-100"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-
-          {/* Sort order */}
-          <select
-            value={sortOrder}
-            onChange={(e) =>
-              setSortOrder(e.target.value as "newest" | "oldest")
-            }
-            className="ml-2 rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
+          <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-300">
+            {items.length} {items.length === 1 ? "stamp" : "stamps"}
+          </span>
         </div>
+
+        {items.length > 1 && (
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="text-[11px] font-medium text-zinc-500 transition-colors hover:text-rose-400"
+          >
+            Clear all
+          </button>
+        )}
       </div>
 
-      {/* Grid of Stamped Items */}
-      {filteredItems.length === 0 ? (
-        <div className="py-12 text-center text-xs text-zinc-500">
-          No stamps match your search filter.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-zinc-400 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+      {/* Pure Stamp Gallery Grid */}
+      <div className="grid grid-cols-3 gap-6 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 sm:gap-7">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="group relative flex flex-col items-center justify-center p-2"
+          >
+            {/* Pure Stamp with Perforated Border */}
+            <button
+              type="button"
+              onClick={() => setViewingItem(item)}
+              className="relative flex cursor-pointer items-center justify-center focus:outline-hidden"
+              title="Click to view stamp"
             >
-              {/* Preview image */}
-              <button
-                type="button"
-                onClick={() => setViewingItem(item)}
-                className="relative flex aspect-4/5 w-full cursor-pointer items-center justify-center p-1.5 transition-transform group-hover:scale-102"
-                title="Click to inspect stamp"
+              <Stamp
+                aria-label={item.config.country || "Postage stamp"}
+                padding={13}
+                horizontalPerforations={item.config.horizontalPerforations || 12}
+                verticalPerforations={item.config.verticalPerforations || 15}
+                perforationDepth={item.config.perforationDepth || 2.4}
+                paper={item.config.paperColor || "#ffffff"}
+                className="z-[1] w-[150px] sm:w-[170px] -rotate-1 transform-gpu transition-transform duration-200 ease-out hover:rotate-0 hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:-rotate-1 motion-reduce:hover:scale-100"
+                contentClassName="rounded-xs overflow-hidden"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={item.previewDataUrl}
-                  alt={`Stamp ${item.config.country || ""}`}
-                  className="max-h-full max-w-full object-contain drop-shadow-md"
+                  src={item.config.imageUrl || item.previewDataUrl}
+                  alt={item.config.country || "Stamp"}
+                  className="size-full object-cover select-none"
+                  draggable={false}
                 />
+                {item.config.country && (
+                  <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-3 text-white drop-shadow-[0_1px_1px_rgb(0_0_0_/_52%)]">
+                    <span className="font-mono font-bold text-[8px] uppercase leading-none tracking-[0.12em]">
+                      {item.config.country}
+                    </span>
+                    {item.config.denomination && (
+                      <strong className="font-mono font-bold text-[17px] leading-[0.8] tracking-[-0.08em]">
+                        {item.config.denomination}
+                      </strong>
+                    )}
+                  </div>
+                )}
+                {item.config.subtitle && (
+                  <span className="pointer-events-none absolute bottom-2.5 left-2.5 font-mono font-bold text-[7px] text-white uppercase leading-none tracking-[0.1em] drop-shadow-[0_1px_1px_rgb(0_0_0_/_52%)]">
+                    {item.config.subtitle}
+                  </span>
+                )}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_rgb(24_23_19_/_18%)]"
+                />
+              </Stamp>
+            </button>
+
+            {/* Floating Action Pill on Hover */}
+            <div className="pointer-events-none absolute -bottom-2 z-20 flex items-center gap-0.5 rounded-full border border-zinc-700/80 bg-zinc-900/95 px-1.5 py-0.5 shadow-2xl backdrop-blur-md opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:-translate-y-0.5">
+              {/* Add / Edit Text */}
+              {onEditText && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditText(item);
+                  }}
+                  className="rounded-full p-1 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                  title="Add / Edit Text"
+                >
+                  <TextT size={12} weight="bold" />
+                </button>
+              )}
+
+              {/* Restamp in Studio */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(item.config);
+                }}
+                className="rounded-full p-1 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                title="Restamp in Canvas"
+              >
+                <ArrowUUpLeft size={12} weight="bold" />
               </button>
 
-              {/* Stamp Info */}
-              <div className="mt-3 border-t border-zinc-100 pt-2.5 dark:border-zinc-800">
-                <div className="flex items-center justify-between">
-                  <span className="truncate text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                    {item.config.country || "POSTAGE"}
-                  </span>
-                  <span className="font-mono text-xs font-extrabold text-zinc-600 dark:text-zinc-400">
-                    {item.config.denomination}
-                  </span>
-                </div>
+              {/* Copy */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy(item);
+                }}
+                className="rounded-full p-1 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                title="Copy to clipboard"
+              >
+                {copiedId === item.id ? (
+                  <Check size={12} className="text-emerald-400" />
+                ) : (
+                  <CopySimple size={12} />
+                )}
+              </button>
 
-                <div className="mt-1 flex items-center justify-between text-[10px] text-zinc-400">
-                  <span>
-                    {new Date(item.timestamp).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span
-                      className="size-2 rounded-full border border-black/10"
-                      style={{ backgroundColor: item.config.paperColor }}
-                      title="Paper color"
-                    />
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ backgroundColor: item.config.inkColor }}
-                      title="Ink color"
-                    />
-                  </div>
-                </div>
+              {/* Download */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(item);
+                }}
+                className="rounded-full p-1 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                title="Download PNG"
+              >
+                <DownloadSimple size={12} />
+              </button>
 
-                {/* Card Actions */}
-                <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2 dark:border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => onSelect(item.config)}
-                    className="flex items-center gap-1 text-[11px] font-bold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
-                    title="Load into Studio"
-                  >
-                    <ArrowUUpLeft size={13} />
-                    Edit
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(item)}
-                      className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                      title="Download transparent PNG"
-                    >
-                      <DownloadSimple size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(item)}
-                      className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                      title="Copy to clipboard"
-                    >
-                      {copiedId === item.id ? (
-                        <Check size={14} className="text-emerald-500" />
-                      ) : (
-                        <CopySimple size={14} />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(item.id)}
-                      className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
-                      title="Delete from collection"
-                    >
-                      <Trash size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(item.id);
+                }}
+                className="rounded-full p-1 text-zinc-400 transition-colors hover:bg-rose-950/40 hover:text-rose-400"
+                title="Delete stamp"
+              >
+                <Trash size={12} />
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {/* Large Stamp Lightbox Modal */}
       {viewingItem && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in duration-150"
           onClick={() => setViewingItem(null)}
         >
           <div
-            className="relative flex max-h-[92vh] w-full max-w-lg flex-col items-center rounded-3xl border border-zinc-800 bg-zinc-900/95 p-6 shadow-2xl backdrop-blur-xl"
+            className="relative flex max-h-[92vh] w-full max-w-lg flex-col items-center rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
             <button
               type="button"
               onClick={() => setViewingItem(null)}
-              className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+              className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-full bg-zinc-900 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
               title="Close (Esc)"
               aria-label="Close"
             >
@@ -408,33 +301,18 @@ export function StampedCollection({
             </button>
 
             {/* Stamp Display (Big) */}
-            <div className="flex max-h-[58vh] w-full items-center justify-center p-4">
+            <div className="flex max-h-[58vh] w-full items-center justify-center p-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={viewingItem.previewDataUrl}
                 alt={viewingItem.config.country || "Stamp"}
-                className="max-h-[54vh] max-w-full object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.6)]"
+                className="max-h-[52vh] max-w-full object-contain drop-shadow-[0_24px_45px_rgba(0,0,0,0.7)]"
               />
             </div>
 
-            {/* Stamp Details */}
-            <div className="mt-2 w-full border-t border-zinc-800 pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-mono text-base font-bold tracking-tight text-white uppercase">
-                    {viewingItem.config.country || "Stamp"}
-                  </h3>
-                  <p className="font-mono text-xs text-zinc-400">
-                    {viewingItem.config.subtitle || "Field archive · 01"}
-                  </p>
-                </div>
-                <span className="font-mono text-2xl font-black text-white">
-                  {viewingItem.config.denomination || "24"}
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-4 flex items-center gap-2">
+            {/* Actions Bar */}
+            <div className="mt-2 flex w-full items-center justify-between gap-2 border-t border-zinc-800/80 pt-4">
+              <div className="flex items-center gap-2">
                 {onEditText && (
                   <button
                     type="button"
@@ -442,10 +320,10 @@ export function StampedCollection({
                       onEditText(viewingItem);
                       setViewingItem(null);
                     }}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-500/40 bg-blue-500/10 px-3 py-2.5 text-xs font-bold text-blue-300 transition-colors hover:bg-blue-500/20 hover:text-white active:scale-98"
+                    className="flex items-center gap-1.5 rounded-xl border border-blue-500/40 bg-blue-500/10 px-3.5 py-2 text-xs font-bold text-blue-300 transition-colors hover:bg-blue-500/20 hover:text-white active:scale-98"
                   >
                     <TextT size={14} weight="bold" />
-                    <span>Add / Edit Text</span>
+                    <span>Add Text</span>
                   </button>
                 )}
 
@@ -455,17 +333,19 @@ export function StampedCollection({
                     onSelect(viewingItem.config);
                     setViewingItem(null);
                   }}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-xs font-bold text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white active:scale-98"
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-xs font-bold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white active:scale-98"
                   title="Reload into Canvas Studio"
                 >
                   <ArrowUUpLeft size={14} weight="bold" />
                   <span>Restamp</span>
                 </button>
+              </div>
 
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleCopy(viewingItem)}
-                  className="flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white active:scale-98"
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white active:scale-98"
                 >
                   {copiedId === viewingItem.id ? (
                     <>
@@ -483,10 +363,22 @@ export function StampedCollection({
                 <button
                   type="button"
                   onClick={() => handleDownload(viewingItem)}
-                  className="flex items-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-zinc-950 transition-colors hover:bg-zinc-200 active:scale-98"
+                  className="flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-zinc-950 transition-colors hover:bg-zinc-200 active:scale-98"
                 >
                   <DownloadSimple size={14} weight="bold" />
                   <span>Download</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDelete(viewingItem.id);
+                    setViewingItem(null);
+                  }}
+                  className="flex size-8 items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 transition-colors hover:border-rose-900/50 hover:bg-rose-950/20 hover:text-rose-400"
+                  title="Delete stamp"
+                >
+                  <Trash size={14} />
                 </button>
               </div>
             </div>

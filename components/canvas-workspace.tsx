@@ -2,7 +2,11 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Stamp } from "@/components/stamp";
-import type { StampConfig, CropOptions } from "@/lib/stamp-renderer";
+import {
+  getStampPadding,
+  type StampConfig,
+  type CropOptions,
+} from "@/lib/stamp-renderer";
 import {
   Minus,
   Plus,
@@ -48,6 +52,7 @@ export function CanvasWorkspace({
   config,
   cutter,
   onChangeCutter,
+  onChangeConfig,
   onStampOut,
   onAutoResizeToImage,
   isStamping = false,
@@ -120,14 +125,8 @@ export function CanvasWorkspace({
   const imageDisplayX = 40;
   const imageDisplayY = 40;
 
-  // Aspect ratio height calculation for stamp cutter
-  let aspectMultiplier = 5 / 4;
-  if (config.aspectRatio === "1/1") aspectMultiplier = 1;
-  else if (config.aspectRatio === "5/4") aspectMultiplier = 4 / 5;
-  else if (config.aspectRatio === "3/4") aspectMultiplier = 4 / 3;
-  else if (config.aspectRatio === "auto") {
-    aspectMultiplier = config.customAspectRatio || 5 / 4;
-  }
+  // Aspect ratio height calculation for stamp cutter (fixed standard 4:5 ratio)
+  const aspectMultiplier = 5 / 4;
   const cutterHeight = Math.round(cutter.width * aspectMultiplier);
 
   // Zoom helpers
@@ -302,28 +301,21 @@ export function CanvasWorkspace({
       imgEl.clientHeight ||
       Math.round((naturalH / naturalW) * imageDisplayWidth);
 
-    // Standard 13px padding from Stamp component
-    const padding = 13;
-    const innerX = cutter.x + padding;
-    const innerY = cutter.y + padding;
-    const innerW = Math.max(10, cutter.width - padding * 2);
-    const innerH = Math.max(10, cutterHeight - padding * 2);
-
     const scaleX = naturalW / imageDisplayWidth;
     const scaleY = naturalH / displayH;
 
-    const relX = innerX - imageDisplayX;
-    const relY = innerY - imageDisplayY;
+    const relX = cutter.x - imageDisplayX;
+    const relY = cutter.y - imageDisplayY;
 
     const crop: CropOptions = {
       normX: relX / imageDisplayWidth,
       normY: relY / displayH,
-      normWidth: innerW / imageDisplayWidth,
-      normHeight: innerH / displayH,
+      normWidth: cutter.width / imageDisplayWidth,
+      normHeight: cutterHeight / displayH,
       cropX: Math.round(relX * scaleX),
       cropY: Math.round(relY * scaleY),
-      cropWidth: Math.round(innerW * scaleX),
-      cropHeight: Math.round(innerH * scaleY),
+      cropWidth: Math.round(cutter.width * scaleX),
+      cropHeight: Math.round(cutterHeight * scaleY),
       rotation: cutter.rotation,
       cutterWidth: cutter.width,
     };
@@ -331,25 +323,54 @@ export function CanvasWorkspace({
     onStampOut(crop);
   }, [cutter, cutterHeight, onStampOut, aspectMultiplier]);
 
-  // Auto Resize to fit image or Snap to top-left corner
+  // Auto Resize to fit image (centered 4:5 ratio)
   const handleFitImage = useCallback(() => {
     if (onAutoResizeToImage) {
       onAutoResizeToImage("full");
       return;
     }
-    const padding = 13;
-    const targetOuterW = imageDisplayWidth + padding * 2;
+    const imgEl = imageElementRef.current;
+    const naturalW = imgEl?.naturalWidth || imageDisplayWidth;
+    const naturalH =
+      imgEl?.naturalHeight ||
+      Math.round(imageDisplayWidth * aspectMultiplier);
+    const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
+
+    const maxFitW = Math.min(
+      imageDisplayWidth,
+      Math.floor(displayH / aspectMultiplier)
+    );
+    const maxFitH = Math.round(maxFitW * aspectMultiplier);
+
+    const centerX = Math.round(
+      imageDisplayX + (imageDisplayWidth - maxFitW) / 2
+    );
+    const centerY = Math.round(
+      imageDisplayY + (displayH - maxFitH) / 2
+    );
+
     onChangeCutter({
-      x: imageDisplayX - padding,
-      y: imageDisplayY - padding,
-      width: targetOuterW,
+      x: centerX,
+      y: centerY,
+      width: maxFitW,
       rotation: 0,
     });
-  }, [onAutoResizeToImage, onChangeCutter]);
+    if (onChangeConfig) {
+      onChangeConfig({
+        aspectRatio: "4/5",
+        horizontalPerforations: 12,
+        verticalPerforations: 15,
+      });
+    }
+  }, [onAutoResizeToImage, onChangeCutter, onChangeConfig, aspectMultiplier]);
 
   const handleSnapCorner = useCallback(
     (corner: SnapCorner) => {
-      const padding = 13;
+      if (onAutoResizeToImage) {
+        onAutoResizeToImage(corner);
+        return;
+      }
+
       const imgEl = imageElementRef.current;
       const naturalW = imgEl?.naturalWidth || imageDisplayWidth;
       const naturalH =
@@ -357,50 +378,53 @@ export function CanvasWorkspace({
         Math.round(imageDisplayWidth * aspectMultiplier);
       const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
 
-      let newX = imageDisplayX - padding;
-      let newY = imageDisplayY - padding;
+      const maxFitW = Math.min(
+        imageDisplayWidth,
+        Math.floor(displayH / aspectMultiplier)
+      );
 
-      if (corner === "top-left") {
-        newX = imageDisplayX - padding;
-        newY = imageDisplayY - padding;
-      } else if (corner === "top-right") {
-        newX = Math.round(
-          imageDisplayX + imageDisplayWidth - cutter.width + padding
-        );
-        newY = imageDisplayY - padding;
+      let targetW = cutter.width;
+      if (targetW >= maxFitW * 0.95) {
+        targetW = Math.min(maxFitW, Math.round(imageDisplayWidth * 0.5));
+      } else {
+        targetW = Math.min(targetW, maxFitW);
+      }
+      targetW = Math.max(80, targetW);
+      const targetH = Math.round(targetW * aspectMultiplier);
+
+      let newX = imageDisplayX;
+      let newY = imageDisplayY;
+
+      if (corner === "top-right") {
+        newX = imageDisplayX + imageDisplayWidth - targetW;
+        newY = imageDisplayY;
       } else if (corner === "bottom-left") {
-        newX = imageDisplayX - padding;
-        newY = Math.round(imageDisplayY + displayH - cutterHeight + padding);
+        newX = imageDisplayX;
+        newY = imageDisplayY + displayH - targetH;
       } else if (corner === "bottom-right") {
-        newX = Math.round(
-          imageDisplayX + imageDisplayWidth - cutter.width + padding
-        );
-        newY = Math.round(imageDisplayY + displayH - cutterHeight + padding);
+        newX = imageDisplayX + imageDisplayWidth - targetW;
+        newY = imageDisplayY + displayH - targetH;
       }
 
       onChangeCutter({
-        x: newX,
-        y: newY,
+        x: Math.round(newX),
+        y: Math.round(newY),
+        width: Math.round(targetW),
         rotation: 0,
       });
-
-      if (onAutoResizeToImage) {
-        onAutoResizeToImage(corner);
-      }
     },
     [
       cutter.width,
-      cutterHeight,
+      aspectMultiplier,
       imageDisplayWidth,
       imageDisplayX,
       imageDisplayY,
-      aspectMultiplier,
       onChangeCutter,
       onAutoResizeToImage,
     ]
   );
 
-  // Stamp Cutter Dragging Handlers
+  // Stamp Cutter Dragging Handlers (clamped to image bounds)
   const handleCutterPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest(".stamp-corner-handle")) return;
@@ -422,9 +446,31 @@ export function CanvasWorkspace({
     if (!isDraggingCutter || !cutterDragStart.current) return;
     const deltaX = (e.clientX - cutterDragStart.current.pointerX) / zoom;
     const deltaY = (e.clientY - cutterDragStart.current.pointerY) / zoom;
+
+    const imgEl = imageElementRef.current;
+    const naturalW = imgEl?.naturalWidth || imageDisplayWidth;
+    const naturalH =
+      imgEl?.naturalHeight ||
+      Math.round(imageDisplayWidth * aspectMultiplier);
+    const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
+
+    const minX = imageDisplayX;
+    const maxX = Math.max(
+      imageDisplayX,
+      imageDisplayX + imageDisplayWidth - cutter.width
+    );
+    const minY = imageDisplayY;
+    const maxY = Math.max(
+      imageDisplayY,
+      imageDisplayY + displayH - cutterHeight
+    );
+
+    const rawX = Math.round(cutterDragStart.current.cutterX + deltaX);
+    const rawY = Math.round(cutterDragStart.current.cutterY + deltaY);
+
     onChangeCutter({
-      x: Math.round(cutterDragStart.current.cutterX + deltaX),
-      y: Math.round(cutterDragStart.current.cutterY + deltaY),
+      x: Math.min(maxX, Math.max(minX, rawX)),
+      y: Math.min(maxY, Math.max(minY, rawY)),
     });
   };
 
@@ -436,7 +482,7 @@ export function CanvasWorkspace({
     cutterDragStart.current = null;
   };
 
-  // 4 Corner Square Resize Handlers
+  // 4 Corner Square Resize Handlers (clamped to image bounds)
   const handleResizePointerDown = (
     e: React.PointerEvent,
     corner: ResizeCorner
@@ -467,60 +513,98 @@ export function CanvasWorkspace({
     const deltaX = (e.clientX - pointerX) / zoom;
     const deltaY = (e.clientY - pointerY) / zoom;
 
-    let widthChange = 0;
+    const imgEl = imageElementRef.current;
+    const naturalW = imgEl?.naturalWidth || imageDisplayWidth;
+    const naturalH =
+      imgEl?.naturalHeight ||
+      Math.round(imageDisplayWidth * aspectMultiplier);
+    const displayH = Math.round((naturalH / naturalW) * imageDisplayWidth);
+
+    const imgLeft = imageDisplayX;
+    const imgTop = imageDisplayY;
+    const imgRight = imageDisplayX + imageDisplayWidth;
+    const imgBottom = imageDisplayY + displayH;
+
+    const startH = Math.round(cutterWidth * aspectMultiplier);
+
     if (corner === "se") {
-      widthChange =
+      const rawChange =
         Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
           ? deltaX
           : deltaY / aspectMultiplier;
+      const maxByRight = imgRight - cutterX;
+      const maxByBottom = (imgBottom - cutterY) / aspectMultiplier;
+      const maxAllowed = Math.max(
+        80,
+        Math.floor(Math.min(maxByRight, maxByBottom))
+      );
       const newWidth = Math.max(
-        100,
-        Math.min(800, Math.round(cutterWidth + widthChange))
+        80,
+        Math.min(maxAllowed, Math.round(cutterWidth + rawChange))
       );
       onChangeCutter({ width: newWidth });
     } else if (corner === "sw") {
-      widthChange =
+      const rawChange =
         Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
           ? -deltaX
           : deltaY / aspectMultiplier;
-      const newWidth = Math.max(
-        100,
-        Math.min(800, Math.round(cutterWidth + widthChange))
+      const anchorRight = cutterX + cutterWidth;
+      const maxByLeft = anchorRight - imgLeft;
+      const maxByBottom = (imgBottom - cutterY) / aspectMultiplier;
+      const maxAllowed = Math.max(
+        80,
+        Math.floor(Math.min(maxByLeft, maxByBottom))
       );
-      const actualDeltaW = newWidth - cutterWidth;
+      const newWidth = Math.max(
+        80,
+        Math.min(maxAllowed, Math.round(cutterWidth + rawChange))
+      );
       onChangeCutter({
-        x: Math.round(cutterX - actualDeltaW),
+        x: Math.round(anchorRight - newWidth),
         width: newWidth,
       });
     } else if (corner === "ne") {
-      widthChange =
+      const rawChange =
         Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
           ? deltaX
           : -deltaY / aspectMultiplier;
-      const newWidth = Math.max(
-        100,
-        Math.min(800, Math.round(cutterWidth + widthChange))
+      const anchorBottom = cutterY + startH;
+      const maxByRight = imgRight - cutterX;
+      const maxByTop = (anchorBottom - imgTop) / aspectMultiplier;
+      const maxAllowed = Math.max(
+        80,
+        Math.floor(Math.min(maxByRight, maxByTop))
       );
-      const actualDeltaW = newWidth - cutterWidth;
-      const deltaH = actualDeltaW * aspectMultiplier;
+      const newWidth = Math.max(
+        80,
+        Math.min(maxAllowed, Math.round(cutterWidth + rawChange))
+      );
+      const newH = Math.round(newWidth * aspectMultiplier);
       onChangeCutter({
-        y: Math.round(cutterY - deltaH),
+        y: Math.round(anchorBottom - newH),
         width: newWidth,
       });
     } else if (corner === "nw") {
-      widthChange =
+      const rawChange =
         Math.abs(deltaX) > Math.abs(deltaY / aspectMultiplier)
           ? -deltaX
           : -deltaY / aspectMultiplier;
-      const newWidth = Math.max(
-        100,
-        Math.min(800, Math.round(cutterWidth + widthChange))
+      const anchorRight = cutterX + cutterWidth;
+      const anchorBottom = cutterY + startH;
+      const maxByLeft = anchorRight - imgLeft;
+      const maxByTop = (anchorBottom - imgTop) / aspectMultiplier;
+      const maxAllowed = Math.max(
+        80,
+        Math.floor(Math.min(maxByLeft, maxByTop))
       );
-      const actualDeltaW = newWidth - cutterWidth;
-      const deltaH = actualDeltaW * aspectMultiplier;
+      const newWidth = Math.max(
+        80,
+        Math.min(maxAllowed, Math.round(cutterWidth + rawChange))
+      );
+      const newH = Math.round(newWidth * aspectMultiplier);
       onChangeCutter({
-        x: Math.round(cutterX - actualDeltaW),
-        y: Math.round(cutterY - deltaH),
+        x: Math.round(anchorRight - newWidth),
+        y: Math.round(anchorBottom - newH),
         width: newWidth,
       });
     }
@@ -578,15 +662,7 @@ export function CanvasWorkspace({
     panStartRef.current = null;
   };
 
-  // Offset of image inside stamp window
-  const stampPadding = 13;
-  const innerWindowLeft = cutter.x + stampPadding;
-  const innerWindowTop = cutter.y + stampPadding;
-  const innerWindowWidth = Math.max(10, cutter.width - stampPadding * 2);
-  const innerWindowHeight = Math.max(10, cutterHeight - stampPadding * 2);
 
-  const innerImageOffsetX = imageDisplayX - innerWindowLeft;
-  const innerImageOffsetY = imageDisplayY - innerWindowTop;
 
   const cursorClass = isPanning
     ? "cursor-grabbing"
@@ -667,50 +743,22 @@ export function CanvasWorkspace({
           }}
           title="Drag stamp to position. Drag corners to resize."
         >
-          {/* Stamp Component Frame matching user specification */}
-          <Stamp
-            paper="#ffffff"
-            ink="#181713"
-            padding={13}
-            horizontalPerforations={12}
-            verticalPerforations={15}
-            perforationDepth={2.4}
-            className="size-full shadow-2xl drop-shadow-[0_20px_35px_rgba(0,0,0,0.5)]"
-            contentClassName="rounded-xs overflow-hidden"
-          >
-            {/* The Stencil Cutout Window */}
-            <div
-              className="relative size-full overflow-hidden"
-              style={{
-                width: `${innerWindowWidth}px`,
-                height: `${innerWindowHeight}px`,
-                backgroundColor: "#ffffff",
-              }}
-            >
-              {/* Seamlessly aligned underlying image */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={config.imageUrl}
-                alt="Stamp viewport"
-                className="pointer-events-none absolute max-w-none select-none"
-                style={{
-                  left: `${innerImageOffsetX}px`,
-                  top: `${innerImageOffsetY}px`,
-                  width: `${imageDisplayWidth}px`,
-                  opacity: 1,
-                }}
-                draggable={false}
-              />
+          {/* Clean Square Outline Viewfinder (No stamp border) */}
+          <div className="relative size-full rounded-[2px] border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.6),0_8px_32px_rgba(0,0,0,0.5)]">
+            {/* Subtle inner highlight on hover */}
+            <div className="size-full bg-white/[0.04] transition-colors hover:bg-white/[0.08]" />
 
-
-
-              {/* Subtle 1px inset stamp border */}
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_rgb(24_23_19_/_18%)]"
-              />
+            {/* Subtle center guide crosshair */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-30">
+              <div className="h-3 w-px bg-white" />
+              <div className="h-px w-3 bg-white" />
             </div>
-          </Stamp>
+
+            {/* Viewfinder dimension badge */}
+            <div className="pointer-events-none absolute -top-6 left-0 flex items-center gap-1 rounded bg-black/85 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white/90 shadow-sm backdrop-blur-xs">
+              <span>{Math.round(cutter.width)} &times; {Math.round(cutterHeight)}</span>
+            </div>
+          </div>
 
           {/* 4 Corner Square Resize Handles (NO blue outline box!) */}
           {/* Top-Left (NW) */}
